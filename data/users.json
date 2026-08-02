@@ -1,0 +1,43 @@
+[
+  {
+    "id": "admin-trjohnx",
+    "name": "Tr-John-X",
+    "email": "shimbacc@hotmail.com",
+    "password": "$2a$10$7UJW0rO.tUvLiKZXgWI2p.iXnUNWwWdVGvz4.CYx/.2mjsOkukLxW",
+    "role": "super_admin",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "9cb1edee-1f8a-42f3-aad3-b862de6b3362",
+    "name": "zaza-bominater-test",
+    "email": "susybaka@at.com",
+    "password": "$2a$10$Lb5epW49dMpWw4flQ.eCZO6brfJTUAWPT7AMYsGmbywUe9ZIlS9zG",
+    "role": "student",
+    "createdAt": "2026-08-02T10:07:55.619Z"
+  },
+  {
+    "id": "superadmin-silungwe",
+    "name": "Silungwe John",
+    "email": "silungwejohn24@gmail.com",
+    "password": "$2a$10$4.Y4i5G9XdYW5xxs2ckKduX.WFSm5qDa2pFp5DHEszfOf1EaA0F/m",
+    "role": "super_admin",
+    "createdAt": "2026-08-02T12:35:00.000Z"
+  },
+  {
+    "id": "b0f0c964-a83f-4b23-b362-8ba269547dc2",
+    "name": "zaza",
+    "email": "bot-b0f0c964-a83f-4b23-b362-8ba269547dc2@johnweb.com",
+    "password": "$2a$10$pKXiqLy8uE/Mcd6aCqIHSOCCS/jtuF9kUKh7uaFpYDw0pzOTRXvy.",
+    "role": "bot",
+    "subjects": [
+      "Mathematics",
+      "Science",
+      "English",
+      "Social Studies"
+    ],
+    "description": "Your friendly Grade 6-7 ECZ tutor! Zaza makes learning fun and easy.",
+    "systemPrompt": "You are Zaza, a friendly Zambian ECZ tutor for Grade 6 and 7 students. You make learning Mathematics, Science, English, and Social Studies fun and easy. Personality: Warm, encouraging, and patient. Use simple English and Zambian examples. Celebrate small wins. Never embarrass a student who answers wrong. Break problems into steps, explain WHY not just the answer. Keep answers short and clear at a Grade 6-7 reading level. End each response with one encouraging question like \"Do you understand?\" or \"Want to try another one?\"",
+    "apiKey": "johnbot-b0f0c964-a83f-4b23-b362-8ba269547dc2-msbp48xo",
+    "createdAt": "2026-08-02T11:09:08.399Z"
+  }
+]
