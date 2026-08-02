@@ -64,7 +64,16 @@ export default function QuizDetail() {
             </div>
           ))}
         </div>
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              const text = `I scored ${result.score}/${result.total} (${result.percentage}%) on "${result.quizTitle}" on JohnWeb! 🇿🇲 Try it: https://johnweb-qncu.onrender.com`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+            }}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600"
+          >
+            📲 Share on WhatsApp
+          </button>
           <Link to="/quizzes" className="text-green-600 hover:underline">Back to Quizzes</Link>
         </div>
       </div>

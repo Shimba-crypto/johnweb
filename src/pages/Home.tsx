@@ -35,9 +35,28 @@ export default function Home() {
     const correct = answers.filter((a) => a.isCorrect).length;
     const totalPapers = subjects.reduce((acc: number, s: any) => acc + (s.papers?.length || 0), 0);
     const recentPapers = subjects.flatMap((s: any) => (s.papers || []).slice(0, 3)).slice(-6);
+    const tips = [
+      "Practice one past paper every day — consistency beats cramming!",
+      "Do your maths without a calculator — the exam doesn't allow one!",
+      "Read questions twice before answering. Look for keywords like 'explain', 'name', 'calculate'.",
+      "Write down formulas you struggle with and review them every morning.",
+      "Time yourself when practicing — aim to finish 10 minutes early.",
+      "Teach a friend what you learned today. Teaching helps you remember!",
+      "Sleep well before the exam. A rested brain remembers better.",
+    ];
+    const tipOfDay = tips[new Date().getDate() % tips.length];
 
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {tipOfDay && (
+          <div className="mb-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl p-4 flex items-start gap-3">
+            <span className="text-2xl">💡</span>
+            <div>
+              <div className="font-semibold text-sm">Study Tip of the Day</div>
+              <div className="text-sm opacity-95">{tipOfDay}</div>
+            </div>
+          </div>
+        )}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Welcome back, {user.name}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2">
