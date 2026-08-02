@@ -388,24 +388,34 @@ subjects.forEach((sub) => {
   });
 });
 
-const defaultAdmin = {
-  id: "admin-trjohnx",
-  name: "Tr-John-X",
-  email: "shimbacc@hotmail.com",
-  password: "$2a$10$7UJW0rO.tUvLiKZXgWI2p.iXnUNWwWdVGvz4.CYx/.2mjsOkukLxW",
-  role: "super_admin",
-  createdAt: "2024-01-01T00:00:00.000Z",
-};
+const defaultAdmins = [
+  {
+    id: "admin-trjohnx",
+    name: "Tr-John-X",
+    email: "shimbacc@hotmail.com",
+    password: "$2a$10$7UJW0rO.tUvLiKZXgWI2p.iXnUNWwWdVGvz4.CYx/.2mjsOkukLxW",
+    role: "super_admin",
+    createdAt: "2024-01-01T00:00:00.000Z",
+  },
+  {
+    id: "superadmin-silungwe",
+    name: "Silungwe John",
+    email: "silungwejohn24@gmail.com",
+    password: "$2a$10$4.Y4i5G9XdYW5xxs2ckKduX.WFSm5qDa2pFp5DHEszfOf1EaA0F/m",
+    role: "super_admin",
+    createdAt: "2026-08-02T12:35:00.000Z",
+  },
+];
 
 function seed() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(path.join(DATA_DIR, "subjects.json"), JSON.stringify(subjects, null, 2));
   fs.writeFileSync(path.join(DATA_DIR, "papers.json"), JSON.stringify(papers, null, 2));
   fs.writeFileSync(path.join(DATA_DIR, "questions.json"), JSON.stringify(questions, null, 2));
-  fs.writeFileSync(path.join(DATA_DIR, "users.json"), JSON.stringify([defaultAdmin], null, 2));
+  fs.writeFileSync(path.join(DATA_DIR, "users.json"), JSON.stringify(defaultAdmins, null, 2));
   fs.writeFileSync(path.join(DATA_DIR, "answers.json"), JSON.stringify([], null, 2));
   console.log(`Seeded: ${subjects.length} subjects, ${papers.length} papers, ${questions.length} questions`);
-  console.log(`Default admin: Tr-John-X (shimbacc@hotmail.com / REDACTED)`);
+  console.log(`Default admins: Tr-John-X (shimbacc@hotmail.com / REDACTED), Silungwe John (silungwejohn24@gmail.com / REDACTED)`);
 }
 
 seed();
