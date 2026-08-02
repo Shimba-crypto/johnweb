@@ -1,0 +1,66 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function Teacher() {
+  const [user, setUser] = useState<any>(null);
+  const [pending, setPending] = useState<any[]>([]);
+  const navigate = useNavigate();
+
+  const token = () => localStorage.getItem("token");
+
+  useEffect(() => {
+    const t = token();
+    if (!t) { navigate("/login"); return; }
+    fetch("/api/auth/me", { headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => r.json())
+      .then((d) => { if (d.error || !["teacher", "admin", "super_admin"].includes(d.role)) navigate("/"); else setUser(d); })
+      .catch(() => navigate("/"));
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) fetch("/api/teacher/pending", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setPending);
+  }, [user]);
+
+  const grade = async (answerId: string, isCorrect: boolean) => {
+    const fb = isCorrect ? "Correct!" : prompt("Feedback for student:");
+    if (!fb) return;
+    await fetch("/api/teacher/grade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ answerId, isCorrect, feedback: fb }),
+    });
+    setPending((prev) => prev.filter((a) => a.id !== answerId));
+  };
+
+  if (!user) return <div className="max-w-4xl mx-auto px-4 py-8">Loading...</div>;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-2">Teacher Dashboard</h1>
+      <p className="text-gray-500 mb-8">Grade student answers | {pending.length} pending</p>
+
+      {pending.length === 0 ? (
+        <div className="bg-white p-8 rounded-xl border shadow-sm text-center text-gray-500">
+          No pending answers to review.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {pending.map((a) => (
+            <div key={a.id} className="bg-white p-4 rounded-xl border shadow-sm border-l-4 border-l-yellow-400">
+              <div className="flex items-start justify-between mb-2">
+                <div className="text-sm text-gray-500">{a.student?.name || "?"} · {a.paper?.title || "?"} · Q{a.question?.questionNumber || "?"}</div>
+              </div>
+              <p className="text-sm mb-1"><span className="font-medium">Question:</span> {a.question?.text || "?"}</p>
+              <p className="text-sm mb-1"><span className="font-medium">Answer:</span> {a.content}</p>
+              <p className="text-sm mb-3"><span className="font-medium">Model:</span> {a.question?.modelAnswer || "?"}</p>
+              <div className="flex gap-2">
+                <button onClick={() => grade(a.id, true)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Correct</button>
+                <button onClick={() => grade(a.id, false)} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Incorrect</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
