@@ -415,7 +415,7 @@ function seed() {
   fs.writeFileSync(path.join(DATA_DIR, "users.json"), JSON.stringify(defaultAdmins, null, 2));
   fs.writeFileSync(path.join(DATA_DIR, "answers.json"), JSON.stringify([], null, 2));
   console.log(`Seeded: ${subjects.length} subjects, ${papers.length} papers, ${questions.length} questions`);
-  console.log(`Default admins: Tr-John-X (shimbacc@hotmail.com / REDACTED), Silungwe John (silungwejohn24@gmail.com / REDACTED)`);
+  console.log(`Default admins: Tr-John-X (shimbacc@hotmail.com), Silungwe John (silungwejohn24@gmail.com)`);
 }
 
 seed();
