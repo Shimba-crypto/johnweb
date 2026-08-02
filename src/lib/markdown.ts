@@ -19,7 +19,10 @@ export function renderMarkdown(md: string): string {
   html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
 
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-green-600 hover:underline">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
+    const safe = href.replace(/^\s*(javascript|vbscript|data):/i, "");
+    return `<a href="${safe}" class="text-green-600 hover:underline">${text}</a>`;
+  });
 
   html = html.replace(/\n{2,}/g, "</p><p>");
   html = html.replace(/\n/g, "<br/>");

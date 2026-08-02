@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import app from "./app.js";
+import app, { migrateData } from "./app.js";
 import { initStorage } from "./storage.js";
 
 // Load .env.local if present
@@ -21,5 +21,6 @@ if (fs.existsSync(envPath)) {
 const PORT = process.env.PORT || 3001;
 
 initStorage().then(() => {
+  migrateData();
   app.listen(PORT, () => console.log(`JohnWeb server running on port ${PORT}`));
 });

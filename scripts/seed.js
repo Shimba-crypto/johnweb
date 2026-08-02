@@ -401,7 +401,7 @@ const defaultAdmins = [
     id: "superadmin-silungwe",
     name: "Silungwe John",
     email: "silungwejohn24@gmail.com",
-    password: "$2a$10$4.Y4i5G9XdYW5xxs2ckKduX.WFSm5qDa2pFp5DHEszfOf1EaA0F/m",
+    password: "$2a$10$lz5Eq7bJxnBS3sBQvsqINOcVZ2dHJYDMVhvxqaB2cMtXv8vqy3Dce",
     role: "super_admin",
     createdAt: "2026-08-02T12:35:00.000Z",
   },

@@ -10,11 +10,49 @@ import { readJSON, writeJSON, initStorage } from "./storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
-const JWT_SECRET = process.env.JWT_SECRET || "johnweb-secret-key-change-in-production";
+
+// ─── JWT SECRET ─────────────────────────────────────────────
+// Prefer env; otherwise persist a strong random secret in settings.json so
+// tokens survive restarts. Never falls back to a hardcoded value.
+import crypto from "crypto";
+function getJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  const current = readJSON("settings.json");
+  const settings = (current && typeof current === "object" && !Array.isArray(current)) ? current : {};
+  if (settings.jwtSecret) return settings.jwtSecret;
+  const secret = crypto.randomBytes(48).toString("hex");
+  settings.jwtSecret = secret;
+  writeJSON("settings.json", settings);
+  console.log("Generated a new random JWT secret (stored in settings.json)");
+  return secret;
+}
+const JWT_SECRET = getJwtSecret();
 
 const app = express();
-app.use(cors());
+
+// ─── CORS (restricted) ──────────────────────────────────────
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://johnweb-qncu.onrender.com,http://localhost:5173,http://localhost:3001").split(",").map((s) => s.trim());
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// ─── SECURITY HEADERS ───────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.deepseek.com https://openrouter.ai; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+  );
+  next();
+});
 
 const DIST_DIR = path.join(__dirname, "..", "dist");
 if (fs.existsSync(DIST_DIR)) {
@@ -71,10 +109,13 @@ function sanitize(input, maxLen = 5000) {
   if (typeof input !== "string") return input;
   let s = input.slice(0, maxLen);
   s = s.replace(/[\u0000-\u001F\u007F]/g, "");
-  s = s.replace(/<\s*script/gi, "&lt;script");
-  s = s.replace(/<\s*\/script/gi, "&lt;/script");
-  s = s.replace(/\b(?:SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE|EXEC|DECLARE)\b.*?;/gi, "");
-  s = s.replace(/(--|#|;)\s*$/g, "");
+  // Neutralize dangerous HTML elements (frontend escapes output too)
+  s = s.replace(/<\s*\/?\s*(script|iframe|object|embed|link|meta|style|base)\b/gi, "&lt;$1");
+  // Strip event-handler attributes (onclick, onerror, ...)
+  s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, " ");
+  // Block dangerous URL schemes (covers markdown links and href/src)
+  s = s.replace(/(javascript|vbscript)\s*:/gi, "$1&colon;");
+  s = s.replace(/data\s*:/gi, "data&colon;");
   return s;
 }
 
@@ -507,7 +548,7 @@ app.post("/api/admin/bots", adminAuth, async (req, res) => {
   const users = readJSON("users.json");
   const botId = uuidv4();
   const apiKey = `johnbot-${botId}-${Date.now().toString(36)}`;
-  const bot = { id: botId, name, email: `bot-${botId}@johnweb.com`, password: bcrypt.hashSync(apiKey, 10), role: "bot", subjects: subjects || [], description: description || "", systemPrompt: systemPrompt || "", apiKey, createdAt: new Date().toISOString() };
+  const bot = { id: botId, name, email: `bot-${botId}@johnweb.com`, password: bcrypt.hashSync(apiKey, 10), role: "bot", subjects: subjects || [], description: description || "", systemPrompt: systemPrompt || "", apiKeyHash: bcrypt.hashSync(apiKey, 10), createdAt: new Date().toISOString() };
   users.push(bot);
   writeJSON("users.json", users);
   res.json({ id: bot.id, name: bot.name, apiKey, subjects: bot.subjects, description: bot.description, systemPrompt: bot.systemPrompt });
@@ -525,13 +566,19 @@ app.get("/api/bots", (req, res) => {
 });
 
 // Bot auth via API key
+function botKeyMatches(bot, key) {
+  if (bot?.apiKeyHash) return bcrypt.compareSync(key, bot.apiKeyHash);
+  if (bot?.apiKey) return bot.apiKey === key;
+  return false;
+}
+
 function botAuth(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   const key = auth.slice(7);
   if (!key.startsWith("johnbot-")) return res.status(401).json({ error: "Invalid bot key" });
   const users = readJSON("users.json");
-  const bot = users.find((u) => u.role === "bot" && u.apiKey === key);
+  const bot = users.find((u) => u.role === "bot" && botKeyMatches(u, key));
   if (!bot) return res.status(401).json({ error: "Bot not found" });
   req.bot = bot;
   next();
@@ -710,7 +757,7 @@ app.post("/api/admin/mod-bots", adminAuth, (req, res) => {
   const users = readJSON("users.json");
   const botId = uuidv4();
   const apiKey = `modbot-${botId}-${Date.now().toString(36)}`;
-  const bot = { id: botId, name, email: `mod-${botId}@johnweb.com`, password: bcrypt.hashSync(apiKey, 10), role: "mod_bot", apiKey, createdAt: new Date().toISOString() };
+  const bot = { id: botId, name, email: `mod-${botId}@johnweb.com`, password: bcrypt.hashSync(apiKey, 10), role: "mod_bot", apiKeyHash: bcrypt.hashSync(apiKey, 10), createdAt: new Date().toISOString() };
   users.push(bot);
   writeJSON("users.json", users);
   res.json({ id: bot.id, name: bot.name, apiKey, role: "mod_bot" });
@@ -722,7 +769,7 @@ app.post("/api/modbot/flag", (req, res) => {
   const key = auth.slice(7);
   if (!key.startsWith("modbot-")) return res.status(401).json({ error: "Invalid MOD bot key" });
   const users = readJSON("users.json");
-  const bot = users.find((u) => u.role === "mod_bot" && u.apiKey === key);
+  const bot = users.find((u) => u.role === "mod_bot" && botKeyMatches(u, key));
   if (!bot) return res.status(401).json({ error: "MOD bot not found" });
   const { answerId, reason } = req.body;
   if (!answerId) return res.status(400).json({ error: "answerId required" });
@@ -1281,22 +1328,38 @@ app.get("/api/timetable", (req, res) => {
   res.json(enriched);
 });
 
-// ─── FILE UPLOAD ──────────────────────────────────────────
+// ─── FILE UPLOAD (images only) ─────────────────────────────
 import multer from "multer";
 const uploadDir = path.join(DATA_DIR, "..", "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${sanitize(file.originalname || "file").replace(/[^a-zA-Z0-9.-]/g, "_")}`),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname || "").toLowerCase().slice(0, 6)}`),
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME.includes(file.mimetype)) return cb(null, true);
+    cb(new Error("Only image files are allowed (jpeg, png, gif, webp)"));
+  },
+});
 
 app.post("/api/upload", auth, upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   res.json({ url: `/uploads/${req.file.filename}`, filename: req.file.filename });
 });
 
-app.use("/uploads", express.static(uploadDir));
+app.use((err, req, res, next) => {
+  if (err?.code === "LIMIT_FILE_SIZE") return res.status(400).json({ error: "File too large (max 5MB)" });
+  if (err?.message?.includes("Only image files")) return res.status(400).json({ error: err.message });
+  if (err?.code === "LIMIT_UNEXPECTED_FILE") return res.status(400).json({ error: "Unexpected file field" });
+  next(err);
+});
+
+app.use("/uploads", express.static(uploadDir, { setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff") }));
 
 // ─── PASSWORD RESET ───────────────────────────────────────
 app.post("/api/auth/forgot-password", (req, res) => {
@@ -1632,5 +1695,19 @@ app.get("/api/admin/backups", adminAuth, (req, res) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
+
+// Migrate legacy plaintext bot keys to hashed keys (called after storage init)
+export function migrateData() {
+  const users = readJSON("users.json");
+  let changed = false;
+  users.forEach((u) => {
+    if ((u.role === "bot" || u.role === "mod_bot") && u.apiKey && !u.apiKeyHash) {
+      u.apiKeyHash = bcrypt.hashSync(u.apiKey, 10);
+      delete u.apiKey;
+      changed = true;
+    }
+  });
+  if (changed) writeJSON("users.json", users);
+}
 
 export default app;
