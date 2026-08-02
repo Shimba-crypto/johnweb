@@ -9,8 +9,7 @@
     "build": "vite build",
     "start": "node server/index.js",
     "server": "node server/index.js",
-    "seed": "node scripts/seed.js",
-    "cli": "node scripts/cli.js"
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

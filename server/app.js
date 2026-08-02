@@ -236,6 +236,28 @@ app.get("/api/answers/mine", (req, res) => {
 
 const ROLE_HIERARCHY = ["student", "investor", "teacher", "dev", "admin", "super_admin"];
 
+// ─── ADMIN SECRET ──────────────────────────────────────────
+// All /api/admin/* and /api/users routes additionally require this secret.
+// Only the owner's private CLI/GUI (which hold the secret) can manage the app.
+// Configure via ADMIN_SECRET env (durable on Render) or settings.adminSecret.
+function getAdminSecret() {
+  if (process.env.ADMIN_SECRET) return process.env.ADMIN_SECRET;
+  const settings = readJSON("settings.json");
+  if (settings && typeof settings === "object" && settings.adminSecret) return settings.adminSecret;
+  return "";
+}
+
+function adminSecret(req, res, next) {
+  const secret = getAdminSecret();
+  if (!secret) return res.status(403).json({ error: "Admin management is disabled. Configure ADMIN_SECRET." });
+  const provided = req.headers["x-admin-secret"];
+  if (!provided || provided !== secret) return res.status(403).json({ error: "Admin secret required or incorrect" });
+  next();
+}
+
+app.use("/api/admin", adminSecret);
+app.use("/api/users", adminSecret);
+
 function getUser(req) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
@@ -391,6 +413,43 @@ app.put("/api/admin/users/:id/role", (req, res) => {
   users[idx].role = role;
   writeJSON("users.json", users);
   res.json({ id: users[idx].id, name: users[idx].name, email: users[idx].email, role: users[idx].role });
+});
+
+// Admin set password
+app.put("/api/admin/users/:id/password", adminAuth, (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found" });
+  users[idx].password = bcrypt.hashSync(password, 10);
+  writeJSON("users.json", users);
+  adminLog("password_set", req.user.id, req.user.name, `Password reset for ${users[idx].email}`);
+  res.json({ message: "Password updated" });
+});
+
+// Admin delete user
+app.delete("/api/admin/users/:id", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found" });
+  if (users[idx].role === "super_admin" && users[idx].id !== req.user.id) return res.status(403).json({ error: "Cannot delete another super_admin" });
+  if (users[idx].id === req.user.id) return res.status(400).json({ error: "You cannot delete your own account" });
+  const [removed] = users.splice(idx, 1);
+  writeJSON("users.json", users);
+  adminLog("user_deleted", req.user.id, req.user.name, `Deleted ${removed.email}`);
+  res.json({ message: "User deleted", id: removed.id });
+});
+
+// Admin send notification to a user
+app.post("/api/admin/users/:id/notify", adminAuth, (req, res) => {
+  const { title, message } = req.body;
+  if (!title || !message) return res.status(400).json({ error: "title and message required" });
+  const users = readJSON("users.json");
+  const u = users.find((x) => x.id === req.params.id);
+  if (!u) return res.status(404).json({ error: "Not found" });
+  addNotification(u.id, "admin_message", title, message, "/profile");
+  res.json({ message: "Notification sent" });
 });
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────
@@ -552,6 +611,19 @@ app.post("/api/admin/bots", adminAuth, async (req, res) => {
   users.push(bot);
   writeJSON("users.json", users);
   res.json({ id: bot.id, name: bot.name, apiKey, subjects: bot.subjects, description: bot.description, systemPrompt: bot.systemPrompt });
+});
+
+// Admin reset a bot's API key (new key shown once)
+app.post("/api/admin/bots/:id/reset-key", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const bot = users.find((u) => (u.role === "bot" || u.role === "mod_bot") && u.id === req.params.id);
+  if (!bot) return res.status(404).json({ error: "Bot not found" });
+  const apiKey = `${bot.role === "mod_bot" ? "modbot" : "johnbot"}-${bot.id}-${Date.now().toString(36)}`;
+  bot.apiKeyHash = bcrypt.hashSync(apiKey, 10);
+  delete bot.apiKey;
+  writeJSON("users.json", users);
+  adminLog("bot_key_reset", req.user.id, req.user.name, `Reset key for bot ${bot.name}`);
+  res.json({ id: bot.id, name: bot.name, apiKey });
 });
 
 app.get("/api/bots", (req, res) => {
