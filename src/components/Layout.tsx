@@ -1,148 +1,148 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
-import Footer from "./Footer";
 
 export default function Layout() {
   const [user, setUser] = useState<any>(null);
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const location = useLocation();
 
-  const loadUser = useCallback(() => {
+  useEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); localStorage.setItem("theme", dark ? "dark" : "light"); }, [dark]);
+
+  useEffect(() => {
     const stored = localStorage.getItem("user");
     try { setUser(stored ? JSON.parse(stored) : null); } catch { setUser(null); }
-  }, []);
+    const check = () => { const u = localStorage.getItem("user"); try { setUser(u ? JSON.parse(u) : null); } catch { setUser(null); } };
+    window.addEventListener("storage", check);
+    return () => window.removeEventListener("storage", check);
+  }, [location.pathname]);
 
-  useEffect(() => { loadUser(); }, [location.pathname, loadUser]);
+  useEffect(() => { setOpen(false); }, [location.pathname]);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
+  const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
 
-  useEffect(() => {
-    window.addEventListener("storage", loadUser);
-    return () => window.removeEventListener("storage", loadUser);
-  }, [loadUser]);
+  const linkCls = (path: string) =>
+    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${location.pathname === path ? "bg-green-600 text-white font-medium" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`;
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    window.location.href = "/";
-  };
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{children}</div>
+  );
 
-  const roleNav = () => {
+  const roleLink = () => {
     if (!user) return null;
-    switch (user.role) {
-      case "super_admin":
-      case "admin": return <Link to="/admin" className="block md:inline text-gray-600 hover:text-gray-900 py-1" onClick={() => setMenuOpen(false)}>Admin</Link>;
-      case "teacher": return <Link to="/teacher" className="block md:inline text-gray-600 hover:text-gray-900 py-1" onClick={() => setMenuOpen(false)}>Grade</Link>;
-      case "investor": return <Link to="/investor" className="block md:inline text-gray-600 hover:text-gray-900 py-1" onClick={() => setMenuOpen(false)}>Analytics</Link>;
-      default: return null;
-    }
+    if (user.role === "super_admin" || user.role === "admin") return <Link to="/admin" className={linkCls("/admin")}>🛠️ <span>Admin Panel</span></Link>;
+    if (user.role === "teacher") return <Link to="/teacher" className={linkCls("/teacher")}>📝 <span>Grade Answers</span></Link>;
+    if (user.role === "investor") return <Link to="/investor" className={linkCls("/investor")}>📊 <span>Analytics</span></Link>;
+    return null;
   };
 
-  return (
-    <div className="flex flex-col min-h-screen">
-      <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-14 md:h-16 items-center">
-            <Link to="/" className="flex items-center gap-2" onClick={() => setMenuOpen(false)}>
-              <span className="text-lg md:text-xl font-bold">
-                <span className="text-green-600">John</span>
-                <span className="text-orange-500">Web</span>
-              </span>
-            </Link>
+  const sidebar = (
+    <div className="flex flex-col h-full">
+      <div className="p-4 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2">
+          <span className="text-xl font-bold"><span className="text-green-600">John</span><span className="text-orange-500">Web</span></span>
+        </Link>
+        <button onClick={() => setOpen(false)} className="lg:hidden text-gray-400"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+      </div>
 
-            {/* Desktop nav */}
-            <div className="hidden md:flex items-center gap-3 text-sm">
-              <Link to="/browse" className="text-gray-600 hover:text-gray-900">Papers</Link>
-              <Link to="/quizzes" className="text-gray-600 hover:text-gray-900">Quizzes</Link>
-              <Link to="/teams" className="text-gray-600 hover:text-gray-900">Teams</Link>
-              <Link to="/leaderboard" className="text-gray-600 hover:text-gray-900">Top</Link>
-              <Link to="/bots" className="text-gray-600 hover:text-gray-900">Bots</Link>
-              <Link to="/news" className="text-gray-600 hover:text-gray-900">News</Link>
-              <Link to="/notes" className="text-gray-600 hover:text-gray-900">Notes</Link>
-              <Link to="/timetable" className="text-gray-600 hover:text-gray-900">Timetable</Link>
-              <Link to="/bookmarks" className="text-gray-600 hover:text-gray-900">Saved</Link>
-              <Link to="/api-docs" className="text-gray-600 hover:text-gray-900">API</Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</Link>
-              {roleNav()}
-              {user ? (
-                <>
-                  <NotificationBell />
-                  <Link to="/achievements" className="text-gray-600 hover:text-gray-900">🏆</Link>
-                  <Link to="/settings" className="text-gray-600 hover:text-gray-900">Settings</Link>
-                  <Link to="/profile" className="text-gray-600 hover:text-gray-900 font-medium">{user.name}</Link>
-                  <button onClick={logout} className="text-gray-500 hover:text-gray-700">Logout</button>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" className="text-gray-600 hover:text-gray-900">Login</Link>
-                  <Link to="/register" className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-sm">Sign Up</Link>
-                </>
-              )}
-              <button onClick={() => setDark(!dark)} className="text-gray-500 hover:text-gray-700 ml-1" title="Toggle dark mode">
-                {dark ? "☀️" : "🌙"}
-              </button>
-            </div>
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        <SectionLabel>Study</SectionLabel>
+        <Link to="/browse" className={linkCls("/browse")}>📚 <span>Past Papers</span></Link>
+        <Link to="/quizzes" className={linkCls("/quizzes")}>🎯 <span>Quizzes</span></Link>
+        <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
+        <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
+        <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>
 
-            {/* Mobile hamburger */}
-            <div className="flex md:hidden items-center gap-2">
-              {user && <NotificationBell />}
-              <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-600 p-1">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {menuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
-                </svg>
-              </button>
-            </div>
-          </div>
+        <SectionLabel>Community</SectionLabel>
+        <Link to="/leaderboard" className={linkCls("/leaderboard")}>🏆 <span>Leaderboard</span></Link>
+        <Link to="/bots" className={linkCls("/bots")}>🤖 <span>AI Tutors</span></Link>
+        <Link to="/news" className={linkCls("/news")}>📰 <span>News</span></Link>
 
-          {/* Mobile nav panel */}
-          {menuOpen && (
-            <div className="md:hidden border-t border-gray-200 py-3 space-y-1 text-sm">
-              <Link to="/browse" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Past Papers</Link>
-              <Link to="/quizzes" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Quizzes</Link>
-              <Link to="/teams" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Teams</Link>
-              <Link to="/leaderboard" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Leaderboard</Link>
-              <Link to="/bots" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>AI Bots</Link>
-              <Link to="/news" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>News</Link>
-              <Link to="/notes" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Notes</Link>
-              <Link to="/timetable" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Timetable</Link>
-              <Link to="/bookmarks" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Saved Questions</Link>
-              <Link to="/api-docs" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>API Docs</Link>
-              <Link to="/pricing" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>Pricing</Link>
-              <Link to="/about" className="block px-2 py-2 text-gray-600 hover:text-gray-900" onClick={() => setMenuOpen(false)}>About</Link>
-              {roleNav()}
-              <hr className="my-2" />
-              {user ? (
-                <>
-                  <Link to="/profile" className="block px-2 py-2 font-medium text-gray-800" onClick={() => setMenuOpen(false)}>{user.name}</Link>
-                  <Link to="/settings" className="block px-2 py-2 text-gray-600" onClick={() => setMenuOpen(false)}>Settings</Link>
-                  <button onClick={logout} className="block w-full text-left px-2 py-2 text-red-600">Logout</button>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" className="block px-2 py-2 text-gray-600" onClick={() => setMenuOpen(false)}>Login</Link>
-                  <Link to="/register" className="block px-2 py-2 text-green-600 font-medium" onClick={() => setMenuOpen(false)}>Sign Up</Link>
-                </>
-              )}
-              <hr className="my-2" />
-              <div className="flex items-center gap-2 px-2 py-2">
-                <button onClick={() => setDark(!dark)} className="text-gray-500 hover:text-gray-700">{dark ? "☀️ Light mode" : "🌙 Dark mode"}</button>
-              </div>
-            </div>
-          )}
-        </div>
+        <SectionLabel>Account</SectionLabel>
+        {user ? (
+          <>
+            {roleLink()}
+            <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
+            <Link to="/achievements" className={linkCls("/achievements")}>🏅 <span>Achievements</span></Link>
+            <Link to="/bookmarks" className={linkCls("/bookmarks")}>🔖 <span>Saved</span></Link>
+            <Link to="/settings" className={linkCls("/settings")}>⚙️ <span>Settings</span></Link>
+          </>
+        ) : (
+          <>
+            <Link to="/login" className={linkCls("/login")}>🔑 <span>Login</span></Link>
+            <Link to="/register" className={linkCls("/register")}>📝 <span>Sign Up</span></Link>
+          </>
+        )}
+
+        <SectionLabel>About</SectionLabel>
+        <Link to="/about" className={linkCls("/about")}>ℹ️ <span>About</span></Link>
+        <Link to="/pricing" className={linkCls("/pricing")}>💳 <span>Pricing</span></Link>
+        <Link to="/contact" className={linkCls("/contact")}>📧 <span>Contact</span></Link>
+        <Link to="/api-docs" className={linkCls("/api-docs")}>🔌 <span>API Docs</span></Link>
       </nav>
 
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+        {user ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm shrink-0">{user.name?.[0]?.toUpperCase()}</div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate">{user.name}</div>
+                <div className="text-xs text-gray-400 truncate">{user.role === "super_admin" ? "Super Admin" : user.role}</div>
+              </div>
+            </div>
+            <button onClick={logout} title="Logout" className="text-gray-400 hover:text-red-500 ml-2 shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setDark(!dark)} className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 py-2 hover:text-gray-700">
+            {dark ? "☀️ Light mode" : "🌙 Dark mode"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
-      <Footer />
+  return (
+    <div className="min-h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 flex-col">
+        {sidebar}
+      </aside>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 shadow-xl flex-col">{sidebar}</aside>
+        </div>
+      )}
+
+      {/* Main area */}
+      <div className="lg:pl-64 flex flex-col min-h-screen">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between px-4 h-14">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setOpen(true)} className="lg:hidden text-gray-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+              <Link to="/" className="lg:hidden text-lg font-bold"><span className="text-green-600">John</span><span className="text-orange-500">Web</span></Link>
+              <div className="hidden lg:block text-sm text-gray-500">Zambian ECZ Past Papers</div>
+            </div>
+            <div className="flex items-center gap-3">
+              {user && <NotificationBell />}
+              <button onClick={() => setDark(!dark)} className="text-gray-500 hover:text-gray-700" title="Toggle dark mode">{dark ? "☀️" : "🌙"}</button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
