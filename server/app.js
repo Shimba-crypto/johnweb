@@ -26,13 +26,15 @@ if (fs.existsSync(DIST_DIR)) {
 
 // ─── AI Helper (free models) ───────────────────────────────
 const FREE_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemini-2.0-flash-exp:free",
-  "qwen/qwen3-8b:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "moonshotai/kimi-k2-instruct:free",
-  "gpt-oss:120b:free",
+  "openrouter/free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "inclusionai/ling-3.0-flash:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "openai/gpt-oss-20b:free",
+  "poolside/laguna-s-2.1:free",
+  "poolside/laguna-xs-2.1:free",
 ];
 
 async function askFreeAI(messages, maxTokens = 300) {
