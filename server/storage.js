@@ -48,7 +48,13 @@ async function loadAll() {
   for (const c of collections) {
     const name = c.name + ".json";
     const docs = await db.collection(c.name).find({}).toArray();
-    cache[name] = docs.map(({ _id, ...rest }) => rest);
+    const cleaned = docs.map(({ _id, ...rest }) => rest);
+    // settings is stored as a single object document (not an array)
+    if (c.name === "settings") {
+      cache[name] = cleaned.length === 1 ? cleaned[0] : (cleaned.length === 0 ? {} : cleaned);
+    } else {
+      cache[name] = cleaned;
+    }
   }
 }
 
