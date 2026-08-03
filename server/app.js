@@ -712,15 +712,34 @@ app.get("/api/leaderboard", (req, res) => {
 
   const scores = {};
   filtered.forEach((a) => {
-    if (!scores[a.userId]) scores[a.userId] = { correct: 0, total: 0 };
+    if (!scores[a.userId]) scores[a.userId] = { correct: 0, total: 0, bySubject: {} };
     scores[a.userId].total++;
     if (a.isCorrect) scores[a.userId].correct++;
+  });
+
+  const questionsAll = readJSON("questions.json");
+  const papersAll = readJSON("papers.json");
+  const subjectsAll = readJSON("subjects.json");
+
+  // dominant subject per student (where they answered most)
+  filtered.forEach((a) => {
+    const q = questionsAll.find((x) => x.id === a.questionId);
+    const p = q ? papersAll.find((x) => x.id === q.paperId) : null;
+    if (!p || !scores[a.userId]) return;
+    const key = p.subjectId || "?";
+    if (!scores[a.userId].bySubject[key]) scores[a.userId].bySubject[key] = 0;
+    scores[a.userId].bySubject[key]++;
   });
 
   const ranked = Object.entries(scores)
     .map(([userId, s]) => {
       const u = users.find((x) => x.id === userId);
-      return { userId, name: u?.name || "Unknown", email: u?.email || "", correct: s.correct, total: s.total, percentage: s.total ? Math.round((s.correct / s.total) * 100) : 0 };
+      let mainSubject = "?";
+      let mainCount = 0;
+      Object.entries(s.bySubject).forEach(([sid, n]) => {
+        if (n > mainCount) { mainCount = n; mainSubject = subjectsAll.find((x) => x.id === sid)?.name || "?"; }
+      });
+      return { userId, name: u?.name || "Unknown", email: u?.email || "", subject: mainSubject, correct: s.correct, total: s.total, percentage: s.total ? Math.round((s.correct / s.total) * 100) : 0 };
     })
     .sort((a, b) => b.percentage - a.percentage || b.total - a.total);
 
@@ -2094,8 +2113,35 @@ app.post("/api/admin/bulk-import", adminAuth, (req, res) => {
     added.push({ questionNumber: startNum + i, text: p.text.slice(0, 60), type: p.type });
   });
   writeJSON("questions.json", questions);
+  const pidx = papers.findIndex((p) => p.id === paperId);
+  if (pidx >= 0) { papers[pidx].source = "real"; writeJSON("papers.json", papers); }
   adminLog("bulk_import", req.user.id, req.user.name, `${added.length} questions added to ${paperId}`);
   res.json({ added: added.length, questions: added });
+});
+
+// Replace a paper's questions with AI-generated ones (realistic Grade 6/7 MCQs)
+app.post("/api/admin/generate-paper-questions", adminAuth, async (req, res) => {
+  const { paperId, count } = req.body;
+  if (!paperId) return res.status(400).json({ error: "paperId required" });
+  const papers = readJSON("papers.json");
+  const paper = papers.find((p) => p.id === paperId);
+  if (!paper) return res.status(404).json({ error: "Paper not found" });
+  const subj = readJSON("subjects.json").find((s) => s.id === paper.subjectId);
+  const n = Math.min(count || 5, 10);
+  const prompt = `Create ${n} multiple-choice questions for an ECZ Grade ${paper.grade} ${subj?.name || "exam"} past paper. They must be age-appropriate for Grade ${paper.grade} Zambian students. Format EXACTLY like this (blank line between questions):\n1. Question text\nA) option\nB) option\nC) option\nD) option\nAnswer: <correct letter>\nMarks: 2`;
+  const result = await askFreeAI([{ role: "user", content: prompt }], 1500);
+  if (!result.text) return res.status(503).json({ error: "AI generation failed. Try again in a minute." });
+  const parsed = parseQuestions(result.text);
+  if (parsed.length === 0) return res.status(502).json({ error: "AI returned unparseable output. Try again." });
+  let questions = readJSON("questions.json").filter((q) => q.paperId !== paperId);
+  parsed.forEach((p, i) => {
+    questions.push({ id: uuidv4(), paperId, questionNumber: i + 1, text: p.text, marks: p.marks, modelAnswer: p.answer, type: p.type, options: p.options });
+  });
+  writeJSON("questions.json", questions);
+  const pidx = papers.findIndex((p) => p.id === paperId);
+  if (pidx >= 0) { papers[pidx].source = "ai"; writeJSON("papers.json", papers); }
+  adminLog("ai_generate", req.user.id, req.user.name, `AI generated ${parsed.length} questions for ${paperId}`);
+  res.json({ added: parsed.length, source: "ai" });
 });
 
 // Init empty data files

@@ -367,6 +367,8 @@ subjects.forEach((sub) => {
         });
         const numQ = grade === "7" ? 5 : 3;
         const realQuestions = REAL_QUESTIONS[sub.name]?.[grade];
+        const hasReal = realQuestions && realQuestions.length > 0;
+        papers[papers.length - 1].source = hasReal ? "real" : "generated";
         for (let q = 1; q <= numQ; q++) {
           const idx = (p - 1) * numQ + (q - 1);
           const real = realQuestions?.[idx];

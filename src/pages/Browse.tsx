@@ -94,8 +94,17 @@ export default function Browse() {
             to={`/paper/${paper.id}`}
             className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition"
           >
-            <div className="text-xs text-green-600 font-semibold uppercase mb-1">
-              {paper.subjectName} | Grade {paper.grade}
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs text-green-600 font-semibold uppercase">
+                {paper.subjectName} | Grade {paper.grade}
+              </div>
+              {paper.source === "real" ? (
+                <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase">Real ECZ</span>
+              ) : paper.source === "ai" ? (
+                <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded uppercase">AI</span>
+              ) : (
+                <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">Generated</span>
+              )}
             </div>
             <h3 className="font-semibold text-lg">{paper.title}</h3>
             <div className="flex gap-3 mt-2 text-sm text-gray-500">

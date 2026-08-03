@@ -342,20 +342,14 @@ export default function PaperDetail() {
               </div>
             )}
 
-            <details className="mt-3">
-              <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">View Model Answer</summary>
-              {q.options && q.options.length > 0 ? (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                  {q.options.map((opt: string, oi: number) => (
-                    <div key={oi} className={`text-sm px-2 py-1 rounded ${opt === q.modelAnswer ? "text-green-700 font-semibold bg-green-50" : "text-gray-700"}`}>
-                      {String.fromCharCode(65 + oi)}. {opt} {opt === q.modelAnswer && "✓"}
-                    </div>
-                  ))}
+            {q.options && q.options.length > 0 && (
+              <details className="mt-3">
+                <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">Check options</summary>
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  Re-read the question carefully. Choose the best answer from A, B, C, or D.
                 </div>
-              ) : (
-                <p className="mt-2 p-3 bg-gray-50 rounded-lg text-gray-700">{q.modelAnswer}</p>
-              )}
-            </details>
+              </details>
+            )}
           </div>
         ))}
       </div>
