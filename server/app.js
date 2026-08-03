@@ -86,19 +86,31 @@ async function askFreeAI(messages, maxTokens = 300) {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey}` },
         body: JSON.stringify({ model: "deepseek-chat", messages, max_tokens: maxTokens }),
       });
-      if (r.ok) { const d = await r.json(); return { text: d.choices?.[0]?.message?.content?.trim(), provider: "deepseek" }; }
+      if (r.ok) {
+        const d = await r.json();
+        const text = d.choices?.[0]?.message?.content?.trim();
+        if (text) return { text, provider: "deepseek" };
+      }
     } catch {}
   }
 
   if (openrouterKey) {
-    for (const model of FREE_MODELS) {
-      try {
-        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterKey}`, "HTTP-Referer": "https://johnweb.com" },
-          body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
-        });
-        if (r.ok) { const d = await r.json(); return { text: d.choices?.[0]?.message?.content?.trim(), provider: model }; }
-      } catch {}
+    // Free models are flaky (random refusals/truncation) — retry the whole list a few times.
+    for (let round = 0; round < 3; round++) {
+      for (const model of FREE_MODELS) {
+        try {
+          const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterKey}`, "HTTP-Referer": "https://johnweb.com" },
+            body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
+          });
+          if (r.ok) {
+            const d = await r.json();
+            const msg = d.choices?.[0]?.message;
+            const text = msg?.content?.trim();
+            if (text) return { text, provider: model };
+          }
+        } catch {}
+      }
     }
   }
   return { text: null, error: "No AI provider available" };
