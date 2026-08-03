@@ -26,6 +26,9 @@ export default function PaperDetail() {
   const [token, setToken] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, { isCorrect: boolean; feedback: string }>>({});
+  const [finished, setFinished] = useState<any>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [paperFeedback, setPaperFeedback] = useState<{ text: string; loading: boolean }>({ text: "", loading: false });
 
   const downloadPDF = () => window.print();
 
@@ -33,6 +36,48 @@ export default function PaperDetail() {
     fetch(`/api/papers/${id}`).then((r) => r.json()).then(setPaper);
     setToken(localStorage.getItem("token"));
   }, [id]);
+
+  const finishPaper = async () => {
+    if (!token) { alert("Please login to finish the paper"); return; }
+    setFinishing(true);
+    // submit any answered-but-not-yet-submitted questions so results are accurate
+    if (paper) {
+      for (const q of paper.questions) {
+        if (answers[q.id] && !results[q.id] && answers[q.id].trim()) {
+          await fetch("/api/answers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ questionId: q.id, content: answers[q.id] }),
+          }).catch(() => {});
+        }
+      }
+    }
+    const res = await fetch(`/api/papers/${id}/results`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    setFinished(data);
+    // fetch AI feedback
+    setPaperFeedback({ text: "", loading: true });
+    try {
+      const fb = await fetch("/api/paper-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: data.title, results: data.results }),
+      });
+      const fbData = await fb.json();
+      setPaperFeedback({ text: fbData.feedback || fbData.error || "Feedback unavailable.", loading: false });
+    } catch {
+      setPaperFeedback({ text: "Feedback unavailable.", loading: false });
+    }
+    setFinishing(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const tryAgain = () => {
+    setFinished(null);
+    setResults({});
+    setAnswers({});
+    setPaperFeedback({ text: "", loading: false });
+  };
 
   const submitAnswer = async (questionId: string) => {
     if (!token) {
@@ -54,6 +99,52 @@ export default function PaperDetail() {
   };
 
   if (!paper) return <div className="max-w-3xl mx-auto px-4 py-8">Loading...</div>;
+
+  if (finished) {
+    const correct = finished.correct || 0;
+    const attempted = finished.attempted || 0;
+    const pct = attempted ? Math.round((correct / attempted) * 100) : 0;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className={`text-center p-8 rounded-xl border shadow-sm mb-6 ${pct >= 50 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+          <div className="text-5xl mb-3">{pct >= 80 ? "🏆" : pct >= 50 ? "🎉" : "💪"}</div>
+          <h1 className="text-2xl font-bold mb-2">{finished.title}</h1>
+          <p className="text-lg">You scored <strong>{correct}/{attempted}</strong> ({pct}%)</p>
+          <p className="text-sm text-gray-500 mt-1">{attempted} of {finished.totalQuestions} questions answered</p>
+        </div>
+
+        <div className="space-y-3 mb-8">
+          {finished.results?.map((r: any) => (
+            <div key={r.questionId} className={`bg-white p-4 rounded-xl border shadow-sm ${r.answered && r.isCorrect ? "border-l-4 border-l-green-500" : r.answered ? "border-l-4 border-l-red-400" : "border-l-4 border-l-gray-300"}`}>
+              <div className="flex justify-between mb-1">
+                <span className="font-medium">Q{r.questionNumber}.</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${r.answered && r.isCorrect ? "bg-green-100 text-green-700" : r.answered ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>
+                  {!r.answered ? "Not answered" : r.isCorrect ? "Correct" : "Incorrect"}
+                </span>
+              </div>
+              <p className="text-sm text-gray-700 mb-1">{r.text}</p>
+              {r.answered && <p className={`text-xs ${r.isCorrect ? "text-gray-500" : "text-red-600"}`}>Your answer: {r.userAnswer}</p>}
+              {r.answered && !r.isCorrect && <p className="text-xs text-green-600 mt-1">Model answer: {r.modelAnswer}</p>}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-6">
+          <h3 className="font-semibold text-purple-800 mb-2">🤖 AI Feedback</h3>
+          {paperFeedback.loading ? (
+            <p className="text-sm text-purple-600">Analyzing your answers...</p>
+          ) : paperFeedback.text ? (
+            <p className="text-sm text-purple-900 whitespace-pre-line">{paperFeedback.text}</p>
+          ) : null}
+        </div>
+
+        <div className="text-center flex gap-3 justify-center">
+          <button onClick={tryAgain} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Try Again</button>
+          <button onClick={downloadPDF} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200">🖨️ Print</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -183,6 +274,17 @@ export default function PaperDetail() {
             </details>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 border-t pt-6">
+        <button
+          onClick={finishPaper}
+          disabled={finishing}
+          className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 text-lg"
+        >
+          {finishing ? "Checking your answers..." : "🏁 Finish Paper & See Results"}
+        </button>
+        <p className="text-center text-xs text-gray-400 mt-2">Submit your answers and get your score with AI feedback</p>
       </div>
 
       <Comments paperId={id || ""} />

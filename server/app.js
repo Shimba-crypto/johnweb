@@ -333,6 +333,47 @@ app.get("/api/papers/:id", (req, res) => {
   res.json({ ...paper, questions });
 });
 
+// Get the logged-in student's results for a paper
+app.get("/api/papers/:id/results", (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+  const payload = verifyAuth(auth.slice(7));
+  if (!payload) return res.status(401).json({ error: "Invalid token" });
+  const papers = readJSON("papers.json");
+  const paper = papers.find((p) => p.id === req.params.id);
+  if (!paper) return res.status(404).json({ error: "Not found" });
+  const questions = readJSON("questions.json").filter((q) => q.paperId === paper.id);
+  const answers = readJSON("answers.json").filter((a) => a.userId === payload.userId);
+  const results = questions.map((q) => {
+    const a = answers.find((x) => x.questionId === q.id);
+    const answered = Boolean(a && a.content && a.content.trim());
+    return {
+      questionId: q.id, questionNumber: q.questionNumber, text: q.text, marks: q.marks,
+      options: q.options || [], userAnswer: a?.content || "", modelAnswer: q.modelAnswer,
+      isCorrect: answered ? a.isCorrect : null, answered,
+    };
+  });
+  const attempted = results.filter((r) => r.answered);
+  const correct = attempted.filter((r) => r.isCorrect).length;
+  res.json({ paperId: paper.id, title: paper.title, totalQuestions: questions.length, attempted: attempted.length, correct, results });
+});
+
+// Overall AI feedback for a completed paper
+app.post("/api/paper-feedback", auth, async (req, res) => {
+  const { title, results } = req.body;
+  if (!results || !Array.isArray(results)) return res.status(400).json({ error: "results required" });
+  const attempted = results.filter((r) => r.answered);
+  const correct = attempted.filter((r) => r.isCorrect).length;
+  const wrong = attempted.filter((r) => !r.isCorrect);
+  const prompt = `You are a Zambian ECZ teacher. A Grade 6/7 student just finished the paper "${title}".
+They got ${correct}/${attempted.length} correct.
+${wrong.length > 0 ? `Questions they got WRONG:\n${wrong.slice(0, 5).map((r, i) => `${i + 1}. ${r.text} (correct answer: ${r.modelAnswer})`).join("\n")}` : "They got everything right!"}
+Give a short overall summary (max 5 sentences): what they did well, the topics to improve (from the wrong questions), and one encouraging tip. Use simple Grade 6/7 language.`;
+  const result = await askFreeAI([{ role: "user", content: prompt }], 400);
+  if (!result.text) return res.status(503).json({ error: "AI temporarily unavailable. Try again in a minute." });
+  res.json({ feedback: result.text, provider: result.provider });
+});
+
 app.get("/api/questions", (req, res) => {
   const { paperId } = req.query;
   if (!paperId) return res.status(400).json({ error: "paperId required" });
