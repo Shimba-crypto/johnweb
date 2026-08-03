@@ -1896,7 +1896,13 @@ function parseQuestions(raw) {
     });
     if (!question) return;
     const type = options.length >= 2 ? "mcq" : "open";
-    parsed.push({ text: question, options, answer, marks: marks || 2, type });
+    // For MCQ, map the answer letter (A-D) to the actual option text so
+    // auto-grading and answer highlighting work correctly.
+    let finalAnswer = answer;
+    if (type === "mcq" && /^[A-D]$/i.test(answer.trim())) {
+      finalAnswer = options[answer.trim().toUpperCase().charCodeAt(0) - 65] || answer;
+    }
+    parsed.push({ text: question, options, answer: finalAnswer, marks: marks || 2, type });
   });
   return parsed;
 }
