@@ -99,6 +99,19 @@ export default function Admin() {
     else alert(result.error || "Error creating codes");
   };
 
+  const generateInvite = async () => {
+    const role = prompt("Role for invitees (student or teacher):", "student") || "student";
+    const school = prompt("School (optional):") || "";
+    const teacherName = prompt("Teacher name (optional):") || "";
+    const maxUses = parseInt(prompt("How many people can use this invite?", "10") || "10");
+    const result = await api("POST", "/api/admin/invites", { role, school, teacherName, maxUses });
+    if (result.token) {
+      const link = `${window.location.origin}/invite/${result.token}`;
+      if (navigator.clipboard) { try { await navigator.clipboard.writeText(link); } catch {} }
+      alert(`✅ Invite link created and copied:\n\n${link}\n\nAnyone with this link can join (${maxUses} uses, role: ${role}).`);
+    } else alert(result.error || "Error creating invite");
+  };
+
   const downloadBackup = async () => {
     const t = localStorage.getItem("token");
     const res = await fetch("/api/admin/backup", { headers: { Authorization: `Bearer ${t}` } });
@@ -290,6 +303,7 @@ export default function Admin() {
                 <a href="/admin/post-news" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Post News</a>
                 <button onClick={downloadBackup} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">💾 Download Backup</button>
                 <button onClick={generateCodes} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🎫 Generate Access Codes</button>
+                <button onClick={generateInvite} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🔗 Generate Invite Link</button>
                 <a href="/admin/bulk-import" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">📥 Bulk Import Questions</a>
                 <a href="/settings" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Settings</a>
               </div>

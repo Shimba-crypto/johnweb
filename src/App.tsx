@@ -45,6 +45,7 @@ import JoinSchool from "./pages/JoinSchool";
 import Battles from "./pages/Battles";
 import BattleRoom from "./pages/BattleRoom";
 import RedeemCode from "./pages/RedeemCode";
+import InviteJoin from "./pages/InviteJoin";
 
 export default function App() {
   return (
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/battles" element={<Battles />} />
         <Route path="/battle/:id" element={<BattleRoom />} />
         <Route path="/redeem" element={<RedeemCode />} />
+        <Route path="/invite/:token" element={<InviteJoin />} />
       </Route>
       </Routes>
     </>

@@ -2439,6 +2439,55 @@ export function migrateData() {
   if (changed) writeJSON("users.json", users);
 }
 
+// ─── INVITE LINKS ─────────────────────────────────────────────
+function genToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10); }
+
+app.post("/api/admin/invites", adminAuth, (req, res) => {
+  const { role, school, teacherName, teacherId, maxUses } = req.body;
+  const validRoles = ["student", "teacher"];
+  const r = validRoles.includes(role) ? role : "student";
+  const invites = readJSON("invites.json");
+  const token = genToken();
+  const invite = { id: uuidv4(), token, role: r, school: school || "", teacherName: teacherName || "", teacherId: teacherId || "", maxUses: Math.min(parseInt(maxUses) || 1, 500), usedCount: 0, createdBy: req.user.id, createdAt: new Date().toISOString() };
+  invites.push(invite);
+  writeJSON("invites.json", invites);
+  adminLog("invite_created", req.user.id, req.user.name, `${r} invite (${invite.maxUses} uses)`);
+  res.json(invite);
+});
+
+app.get("/api/admin/invites", adminAuth, (req, res) => {
+  res.json(readJSON("invites.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+});
+
+app.get("/api/invites/:token", (req, res) => {
+  const invite = readJSON("invites.json").find((i) => i.token === req.params.token);
+  if (!invite) return res.status(404).json({ error: "Invite not found or expired" });
+  if (invite.usedCount >= invite.maxUses) return res.status(400).json({ error: "This invite has reached its limit" });
+  res.json({ role: invite.role, school: invite.school, teacherName: invite.teacherName, usedCount: invite.usedCount, maxUses: invite.maxUses });
+});
+
+app.post("/api/invites/:token/register", (req, res) => {
+  const { name, password } = req.body;
+  if (!name || !password) return res.status(400).json({ error: "Name and password required" });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  const invites = readJSON("invites.json");
+  const invite = invites.find((i) => i.token === req.params.token);
+  if (!invite) return res.status(404).json({ error: "Invite not found or expired" });
+  if (invite.usedCount >= invite.maxUses) return res.status(400).json({ error: "This invite has reached its limit" });
+  const users = readJSON("users.json");
+  const slug = (name + (invite.school || "jws")).toLowerCase().replace(/[^a-z0-9]+/g, ".");
+  let email = `${slug}@invite.johnweb.com`;
+  let n = 1;
+  while (users.find((u) => u.email === email)) email = `${slug}.${n++}@invite.johnweb.com`;
+  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: invite.role, tokenVersion: 1, school: invite.school || "", teacherName: invite.teacherName || "", teacherId: invite.teacherId || "", createdAt: new Date().toISOString() };
+  users.push(user);
+  writeJSON("users.json", users);
+  invite.usedCount++;
+  writeJSON("invites.json", invites);
+  res.json({ message: "Registered successfully!", email, user: { id: user.id, name: user.name, email: user.email, role: user.role, school: user.school, teacherName: user.teacherName } });
+});
+
 // ─── ACCESS CODES (sell codes, students redeem) ─────────────
 function genAccessCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -2492,7 +2541,7 @@ app.post("/api/codes/redeem", (req, res) => {
 
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
