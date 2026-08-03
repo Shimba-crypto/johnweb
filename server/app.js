@@ -29,6 +29,7 @@ function getJwtSecret() {
 const JWT_SECRET = getJwtSecret();
 
 const app = express();
+app.set("trust proxy", 1);
 
 // ─── CORS (restricted) ──────────────────────────────────────
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://johnweb-qncu.onrender.com,http://localhost:5173,http://localhost:3001").split(",").map((s) => s.trim());
@@ -47,6 +48,7 @@ app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.deepseek.com https://openrouter.ai; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
@@ -141,10 +143,20 @@ function sanitizeBody(req, res, next) {
   next();
 }
 
+// Password strength policy
+function validatePassword(pw) {
+  if (typeof pw !== "string" || pw.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Za-z]/.test(pw)) return "Password must contain at least one letter";
+  if (!/\d/.test(pw)) return "Password must contain at least one number";
+  return null;
+}
+
 const rateLimitStore = new Map();
 function rateLimit(max, windowMs) {
   return (req, res, next) => {
-    const key = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+    // req.ip is derived from the trusted proxy (Render), so a client-spoofed
+    // X-Forwarded-For header cannot bypass the limit.
+    const key = req.ip || req.socket.remoteAddress || "unknown";
     const now = Date.now();
     const record = rateLimitStore.get(key);
     if (!record || now - record.start > windowMs) {
@@ -167,8 +179,11 @@ app.use(sanitizeBody);
 app.post("/api/auth/register", (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "All fields are required" });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
   const users = readJSON("users.json");
-  if (users.find((u) => u.email === email)) return res.status(400).json({ error: "Email already registered" });
+  // Generic response to avoid user enumeration
+  if (users.find((u) => u.email === email)) return res.status(400).json({ error: "Unable to create account. Please check your details and try again." });
   const role = users.length === 0 ? "super_admin" : "student";
   const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, createdAt: new Date().toISOString() };
   users.push(user);
@@ -431,7 +446,8 @@ app.put("/api/admin/users/:id/role", (req, res) => {
 // Admin set password
 app.put("/api/admin/users/:id/password", adminAuth, (req, res) => {
   const { password } = req.body;
-  if (!password || password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "Not found" });
@@ -570,6 +586,8 @@ app.post("/api/auth/change-password", (req, res) => {
     const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) return res.status(400).json({ error: "Current and new password required" });
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
     const users = readJSON("users.json");
     const idx = users.findIndex((u) => u.id === userId);
     if (idx === -1) return res.status(404).json({ error: "User not found" });
@@ -1502,21 +1520,29 @@ app.post("/api/auth/forgot-password", (req, res) => {
   if (!email) return res.status(400).json({ error: "Email required" });
   const users = readJSON("users.json");
   const user = users.find((u) => u.email === email);
-  if (!user) return res.json({ message: "If the email exists, a reset link will be sent." });
-  const resetToken = uuidv4();
+  const generic = { message: "If that email is registered, a reset link has been sent." };
+  if (!user) return res.json(generic);
+  const resetToken = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
   const resets = readJSON("password-resets.json");
-  resets.push({ id: uuidv4(), userId: user.id, token: resetToken, used: false, createdAt: new Date().toISOString() });
+  // Invalidate any previous unused tokens for this user
+  resets.forEach((r) => { if (r.userId === user.id && !r.used) r.used = true; });
+  resets.push({ id: uuidv4(), userId: user.id, token: resetToken, used: false, expiresAt, createdAt: new Date().toISOString() });
   writeJSON("password-resets.json", resets);
-  console.log(`Password reset token for ${email}: ${resetToken}`);
-  res.json({ message: "If the email exists, a reset link will be sent.", token: resetToken });
+  // Token is sent by email only — never returned to the caller
+  sendEmail(user.email, "JohnWeb Password Reset", `<p>Use this reset token on the JohnWeb site:</p><p><b>${resetToken}</b></p><p>It expires in 30 minutes.</p>`);
+  res.json(generic);
 });
 
 app.post("/api/auth/reset-password", (req, res) => {
   const { token, newPassword } = req.body;
   if (!token || !newPassword) return res.status(400).json({ error: "Token and new password required" });
+  const pwErr = validatePassword(newPassword);
+  if (pwErr) return res.status(400).json({ error: pwErr });
   const resets = readJSON("password-resets.json");
   const reset = resets.find((r) => r.token === token && !r.used);
   if (!reset) return res.status(400).json({ error: "Invalid or expired token" });
+  if (reset.expiresAt && new Date(reset.expiresAt) < new Date()) return res.status(400).json({ error: "Invalid or expired token" });
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === reset.userId);
   if (idx === -1) return res.status(404).json({ error: "User not found" });
