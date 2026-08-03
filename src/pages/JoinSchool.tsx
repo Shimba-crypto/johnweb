@@ -21,8 +21,24 @@ export default function JoinSchool() {
       body: JSON.stringify({ name, password, school: "primarysteps", teacherName: "Silungwe John", teacherId: "silungwejohn" }),
     });
     const data = await res.json();
-    if (!res.ok) setError(data.error || "Registration failed");
-    else { setMsg(data.message); setDone(true); }
+    if (!res.ok) { setError(data.error || "Registration failed"); return; }
+    // Auto-login so they land straight in their account
+    try {
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, password }),
+      });
+      const loginData = await loginRes.json();
+      if (loginRes.ok) {
+        localStorage.setItem("token", loginData.token);
+        localStorage.setItem("refreshToken", loginData.refreshToken || "");
+        localStorage.setItem("user", JSON.stringify(loginData.user));
+        window.location.href = "/browse";
+        return;
+      }
+    } catch {}
+    setMsg(data.message); setDone(true);
   };
 
   return (

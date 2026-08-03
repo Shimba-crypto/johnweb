@@ -17,11 +17,24 @@ export default function Register() {
       body: JSON.stringify({ name, email, password }),
     });
     const data = await res.json();
-    if (res.ok) {
-      navigate("/login");
-    } else {
-      setError(data.error);
-    }
+    if (!res.ok) { setError(data.error); return; }
+    // Auto-login so new accounts land straight in
+    try {
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json();
+      if (loginRes.ok) {
+        localStorage.setItem("token", loginData.token);
+        localStorage.setItem("refreshToken", loginData.refreshToken || "");
+        localStorage.setItem("user", JSON.stringify(loginData.user));
+        navigate("/browse");
+        return;
+      }
+    } catch {}
+    navigate("/login");
   };
 
   return (
