@@ -8,7 +8,7 @@ const REAL_QUESTIONS = {
   "Mathematics": {
     "7": [
       { text: "Solve: 45 + 27 = ?", marks: 2, answer: "72", options: ["62", "70", "72", "82"] },
-      { text: "A farmer has 36 eggs and sells 18. How many eggs are left?", marks: 3, answer: "18 eggs", options: ["12", "18", "20", "24"] },
+      { text: "A farmer has 36 eggs and sells 18. How many eggs are left?", marks: 3, answer: "18", options: ["12", "18", "20", "24"] },
       { text: "Convert 1/2 to a decimal.", marks: 2, answer: "0.5", options: ["0.2", "0.5", "0.05", "5.0"] },
       { text: "Find the area of a rectangle that is 8 cm long and 5 cm wide.", marks: 3, answer: "40 cm²", options: ["13 cm²", "26 cm²", "40 cm²", "80 cm²"] },
       { text: "What is the next number in the sequence: 2, 4, 8, 16, ___", marks: 2, answer: "32", options: ["24", "28", "32", "64"] },
@@ -237,7 +237,7 @@ const REAL_QUESTIONS = {
       { text: "Which sense organ do we use to see?", marks: 2, answer: "The eye", options: ["The ear", "The eye", "The nose", "The tongue"] },
       { text: "What do plants need to make food?", marks: 3, answer: "Sunlight, water, and carbon dioxide", options: ["Only water", "Only sunlight", "Sunlight, water, and carbon dioxide", "Soil and air"] },
       { text: "What is water made of?", marks: 3, answer: "Hydrogen and oxygen", options: ["Hydrogen and oxygen", "Oxygen and nitrogen", "Carbon and oxygen", "Hydrogen and carbon"] },
-      { text: "Name one source of light.", marks: 2, answer: "Sun (or bulb/candle)", options: ["The moon", "The sun", "A stone", "Water"] },
+      { text: "Name one source of light.", marks: 2, answer: "The sun", options: ["The moon", "The sun", "A stone", "Water"] },
     ],
     "6": [
       { text: "Name the process by which plants make their own food.", marks: 2, answer: "Photosynthesis" },
@@ -252,9 +252,9 @@ const REAL_QUESTIONS = {
   },
   "Social Studies": {
     "7": [
-      { text: "Which country borders Zambia to the south?", marks: 2, answer: "Zimbabwe (or Botswana/Namibia)", options: ["Tanzania", "Zimbabwe", "Congo DRC", "Malawi"] },
+      { text: "Which country borders Zambia to the south?", marks: 2, answer: "Zimbabwe", options: ["Tanzania", "Zimbabwe", "Congo DRC", "Malawi"] },
       { text: "What is the capital city of Zambia?", marks: 2, answer: "Lusaka", options: ["Copperbelt", "Lusaka", "Livingstone", "Kitwe"] },
-      { text: "Name the three national colours on the Zambian flag.", marks: 3, answer: "Green, orange, red (with black and eagle)", options: ["Green, blue, white", "Green, orange, red", "Red, white, blue", "Black, yellow, green"] },
+      { text: "Name the three national colours on the Zambian flag.", marks: 3, answer: "Green, orange, red", options: ["Green, blue, white", "Green, orange, red", "Red, white, blue", "Black, yellow, green"] },
       { text: "What is the national bird of Zambia?", marks: 2, answer: "African Fish Eagle", options: ["Ostrich", "African Fish Eagle", "Vulture", "Crane"] },
       { text: "What is the name of Zambia's currency?", marks: 2, answer: "Kwacha", options: ["Shilling", "Rand", "Kwacha", "Naira"] },
     ],
@@ -298,11 +298,11 @@ const REAL_QUESTIONS = {
   },
   "Creative and Technology Studies": {
     "7": [
-      { text: "What is the primary colour that cannot be made by mixing other colours?", marks: 2, answer: "Red (or blue/yellow)", options: ["Red", "Orange", "Green", "Purple"] },
+      { text: "What is the primary colour that cannot be made by mixing other colours?", marks: 2, answer: "Red", options: ["Red", "Orange", "Green", "Purple"] },
       { text: "Which tool is used to cut wood in the workshop?", marks: 2, answer: "Saw", options: ["Hammer", "Saw", "Pliers", "File"] },
-      { text: "What is the safe way to hold scissors when passing them to someone?", marks: 2, answer: "Handle first, blades pointing towards yourself", options: ["Blades first", "Handle first", "Thrown", "Open blades"] },
+      { text: "What is the safe way to hold scissors when passing them to someone?", marks: 2, answer: "Handle first", options: ["Blades first", "Handle first", "Thrown", "Open blades"] },
       { text: "Name one way to conserve energy at home.", marks: 3, answer: "Switch off lights when not in use", options: ["Switch off lights when not in use", "Leave taps running", "Keep lights on all day", "Use more electricity"] },
-      { text: "What material is commonly used to make a simple drawing pencil?", marks: 3, answer: "Graphite (and wood)", options: ["Graphite", "Iron", "Plastic", "Rubber"] },
+      { text: "What material is commonly used to make a simple drawing pencil?", marks: 3, answer: "Graphite", options: ["Graphite", "Iron", "Plastic", "Rubber"] },
     ],
   },
   "English Literature": {
