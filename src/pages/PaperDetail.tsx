@@ -158,28 +158,6 @@ export default function PaperDetail() {
 
   if (!paper) return <div className="max-w-3xl mx-auto px-4 py-8">Loading...</div>;
 
-  if (!started && !finished) {
-    const minutes = paper.questions.length;
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <div className="text-5xl mb-4">⏱️</div>
-        <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
-        <p className="text-gray-500 mb-6">{paper.description}</p>
-        <div className="bg-white p-6 rounded-xl border shadow-sm max-w-sm mx-auto mb-8">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div><div className="text-2xl font-bold text-green-600">{paper.questions.length}</div><div className="text-xs text-gray-500">Questions</div></div>
-            <div><div className="text-2xl font-bold text-orange-600">{minutes}</div><div className="text-xs text-gray-500">Minutes</div></div>
-            <div><div className="text-2xl font-bold text-blue-600">1</div><div className="text-xs text-gray-500">Min/Question</div></div>
-          </div>
-        </div>
-        <button onClick={startExam} className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 text-lg">
-          ▶ Start Exam
-        </button>
-        <p className="text-xs text-gray-400 mt-3">The timer starts now and can't be paused. Submit automatically when time is up.</p>
-      </div>
-    );
-  }
-
   if (finished) {
     const correct = finished.correct || 0;
     const attempted = finished.attempted || 0;
@@ -242,7 +220,7 @@ export default function PaperDetail() {
         </div>
       </div>
 
-      {started && (
+      {started ? (
         <div className={`flex items-center justify-between gap-3 rounded-xl p-4 mb-8 ${timeLeft <= 60 ? "bg-red-600 text-white" : "bg-gradient-to-r from-orange-500 to-red-500 text-white"}`}>
           <div>
             <div className="font-bold">⏱️ Time Remaining</div>
@@ -251,6 +229,16 @@ export default function PaperDetail() {
           <span className="bg-white px-4 py-2 rounded-lg font-bold text-lg tabular-nums">
             {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
           </span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 rounded-xl p-4 mb-8 bg-gray-100 border">
+          <div>
+            <div className="font-bold">⏱️ Practice mode</div>
+            <div className="text-sm text-gray-500">No timer. Answer at your own pace.</div>
+          </div>
+          <button onClick={startExam} className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600">
+            ▶ Start Timer ({paper.questions.length} min)
+          </button>
         </div>
       )}
 
