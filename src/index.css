@@ -46,16 +46,79 @@ nav, .bg-white, .bg-gray-50 {
 
 [data-theme="dark"] nav { background: var(--nav-bg) !important; border-color: var(--border) !important; }
 [data-theme="dark"] .bg-white { background: var(--bg-card) !important; }
+
+/* ---- gray surfaces ---- */
 [data-theme="dark"] .bg-gray-50 { background: #1a2332 !important; }
-[data-theme="dark"] .text-gray-500, [data-theme="dark"] .text-gray-600, [data-theme="dark"] .text-gray-400 { color: var(--text-secondary) !important; }
-[data-theme="dark"] .text-gray-700, [data-theme="dark"] .text-gray-800, [data-theme="dark"] .text-gray-900 { color: var(--text) !important; }
+[data-theme="dark"] .bg-gray-100 { background: #27303f !important; }
+[data-theme="dark"] .bg-gray-200 { background: #334155 !important; }
+[data-theme="dark"] .bg-gray-300 { background: #475569 !important; }
+[data-theme="dark"] .bg-gray-800 { background: #0f172a !important; }
+[data-theme="dark"] .bg-gray-900 { background: #0b1120 !important; }
+
+/* ---- text colors ---- */
+[data-theme="dark"] .text-gray-300 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-gray-400, [data-theme="dark"] .text-gray-500, [data-theme="dark"] .text-gray-600 { color: var(--text-secondary) !important; }
+[data-theme="dark"] .text-gray-700, [data-theme="dark"] .text-gray-800, [data-theme="dark"] .text-gray-900, [data-theme="dark"] .text-black { color: var(--text) !important; }
+
+/* ---- borders ---- */
 [data-theme="dark"] .border, [data-theme="dark"] .border-b, [data-theme="dark"] .border-t, [data-theme="dark"] .border-r, [data-theme="dark"] .border-l { border-color: var(--border) !important; }
+[data-theme="dark"] .border-gray-100, [data-theme="dark"] .border-gray-200, [data-theme="dark"] .border-gray-300 { border-color: var(--border) !important; }
 [data-theme="dark"] .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important; }
+[data-theme="dark"] .shadow { box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }
+[data-theme="dark"] .shadow-lg { box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important; }
+
+/* ---- hover states ---- */
+[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: #27303f !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: #334155 !important; }
+[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: #475569 !important; }
+[data-theme="dark"] .hover\:text-gray-900:hover, [data-theme="dark"] .hover\:text-gray-700:hover { color: var(--text) !important; }
+
+/* ---- inputs & controls ---- */
 [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea { background: #0f172a !important; color: var(--text) !important; border-color: var(--border) !important; }
-[data-theme="dark"] .bg-green-50 { background: #064e3b !important; }
-[data-theme="dark"] .bg-red-50 { background: #450a0a !important; }
-[data-theme="dark"] .bg-yellow-50 { background: #422006 !important; }
+[data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder { color: #64748b !important; }
+
+/* ---- tinted surfaces ---- */
+[data-theme="dark"] .bg-green-50 { background: #0f2e22 !important; }
+[data-theme="dark"] .bg-green-100 { background: #14532d !important; }
+[data-theme="dark"] .bg-red-50 { background: #2d1517 !important; }
+[data-theme="dark"] .bg-red-100 { background: #7f1d1d !important; }
+[data-theme="dark"] .bg-yellow-50 { background: #2e2610 !important; }
+[data-theme="dark"] .bg-yellow-100 { background: #713f12 !important; }
+[data-theme="dark"] .bg-amber-50 { background: #2e2610 !important; }
+[data-theme="dark"] .bg-amber-100 { background: #713f12 !important; }
+[data-theme="dark"] .bg-blue-50 { background: #17283f !important; }
+[data-theme="dark"] .bg-blue-100 { background: #1e3a5f !important; }
+[data-theme="dark"] .bg-purple-50 { background: #251d3f !important; }
+[data-theme="dark"] .bg-purple-100 { background: #3b2f5f !important; }
+[data-theme="dark"] .bg-orange-50 { background: #33250f !important; }
+[data-theme="dark"] .bg-orange-100 { background: #4a3a1e !important; }
+[data-theme="dark"] .bg-indigo-50 { background: #1e2a52 !important; }
+[data-theme="dark"] .bg-cyan-50 { background: #102f3a !important; }
+[data-theme="dark"] .bg-cyan-100 { background: #164e63 !important; }
+
+/* ---- text inside tinted badges ---- */
+[data-theme="dark"] .text-green-700, [data-theme="dark"] .text-green-600 { color: #86efac !important; }
+[data-theme="dark"] .text-red-700, [data-theme="dark"] .text-red-600 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-yellow-700, [data-theme="dark"] .text-yellow-600 { color: #fde047 !important; }
+[data-theme="dark"] .text-amber-800, [data-theme="dark"] .text-amber-700, [data-theme="dark"] .text-amber-600 { color: #fcd34d !important; }
+[data-theme="dark"] .text-blue-700, [data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-purple-700, [data-theme="dark"] .text-purple-800, [data-theme="dark"] .text-purple-900 { color: #d8b4fe !important; }
+[data-theme="dark"] .text-orange-600, [data-theme="dark"] .text-orange-700 { color: #fdba74 !important; }
+[data-theme="dark"] .text-cyan-700, [data-theme="dark"] .text-cyan-600 { color: #67e8f9 !important; }
+[data-theme="dark"] .text-indigo-600, [data-theme="dark"] .text-indigo-700 { color: #a5b4fc !important; }
+
+/* ---- buttons (keep colored buttons vivid, darken borders) ---- */
+[data-theme="dark"] .bg-green-600, [data-theme="dark"] .bg-green-500, [data-theme="dark"] .bg-green-700 { filter: brightness(1.1); }
+[data-theme="dark"] .bg-blue-600, [data-theme="dark"] .bg-blue-700 { filter: brightness(1.1); }
+[data-theme="dark"] .bg-red-600, [data-theme="dark"] .bg-red-700 { filter: brightness(1.1); }
+[data-theme="dark"] .bg-purple-600, [data-theme="dark"] .bg-purple-700 { filter: brightness(1.1); }
+[data-theme="dark"] .bg-orange-500, [data-theme="dark"] .bg-orange-600 { filter: brightness(1.1); }
+[data-theme="dark"] .bg-amber-100 { background: #713f12 !important; }
+
+/* ---- misc ---- */
 [data-theme="dark"] .bg-gradient-to-br { opacity: 0.9; }
+[data-theme="dark"] .bg-black\/50 { background: rgba(0,0,0,0.7) !important; }
+[data-theme="dark"] .ring-green-500 { --tw-ring-color: #22c55e !important; }
 
 @media print {
   nav, button, textarea, details, .hidden { display: none !important; }
