@@ -8,6 +8,7 @@ export default function QuizDetail() {
   const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [explains, setExplains] = useState<Record<string, { loading: boolean; text: string }>>({});
   const user = localStorage.getItem("user");
 
   useEffect(() => {
@@ -61,6 +62,27 @@ export default function QuizDetail() {
               <p className="text-sm text-gray-700 mb-1">{r.text}</p>
               {r.userAnswer && <p className="text-xs text-gray-500">Your answer: {r.userAnswer}</p>}
               {!r.isCorrect && <p className="text-xs text-green-600 mt-1">Model answer: {r.modelAnswer}</p>}
+              {!r.isCorrect && (
+                <button
+                  onClick={async () => {
+                    const t = localStorage.getItem("token");
+                    if (!t) return alert("Login first");
+                    setExplains((prev) => ({ ...prev, [r.questionId]: { loading: true, text: "" } }));
+                    const res = await fetch("/api/ai-feedback", {
+                      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+                      body: JSON.stringify({ question: r.text, answer: r.userAnswer, modelAnswer: r.modelAnswer, options: q.options, mode: "explain" }),
+                    });
+                    const data = await res.json();
+                    setExplains((prev) => ({ ...prev, [r.questionId]: { loading: false, text: data.feedback || data.error || "Explain unavailable" } }));
+                  }}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-800 px-3 py-1.5 rounded-lg hover:bg-amber-200"
+                >
+                  {explains[r.questionId]?.loading ? "Explaining..." : "💡 Explain why"}
+                </button>
+              )}
+              {explains[r.questionId]?.text && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">{explains[r.questionId].text}</div>
+              )}
             </div>
           ))}
         </div>

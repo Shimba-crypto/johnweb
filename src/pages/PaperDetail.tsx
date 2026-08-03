@@ -144,8 +144,26 @@ export default function PaperDetail() {
             </div>
 
             {results[q.id] && (
-              <div className={`mt-3 p-3 rounded-lg ${results[q.id].isCorrect ? "bg-green-50 text-green-700 border border-green-200" : "bg-purple-50 text-purple-800 border border-purple-200"}`}>
+              <div className={`mt-3 p-3 rounded-lg ${results[q.id].isCorrect ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
                 <p className="font-medium">{results[q.id].feedback}</p>
+                {!results[q.id].isCorrect && answers[q.id] && (
+                  <button
+                    onClick={async () => {
+                      const t = localStorage.getItem("token");
+                      if (!t) return alert("Login first");
+                      setResults((prev) => ({ ...prev, [q.id]: { ...prev[q.id], explaining: true } }));
+                      const res = await fetch("/api/ai-feedback", {
+                        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+                        body: JSON.stringify({ question: q.text, answer: answers[q.id], modelAnswer: q.modelAnswer, options: q.options, mode: "explain" }),
+                      });
+                      const data = await res.json();
+                      setResults((prev) => ({ ...prev, [q.id]: { ...prev[q.id], feedback: data.feedback || data.error || "Explain unavailable", explaining: false } }));
+                    }}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-800 px-3 py-1.5 rounded-lg hover:bg-amber-200"
+                  >
+                    {results[q.id].explaining ? "Explaining..." : "💡 Explain why"}
+                  </button>
+                )}
               </div>
             )}
 

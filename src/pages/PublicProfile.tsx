@@ -7,9 +7,13 @@ export default function PublicProfile() {
   const { id } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [myUser, setMyUser] = useState<any>(null);
+  const [progress, setProgress] = useState<any>(null);
+  const [subjects, setSubjects] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`/api/users/${id}/public`).then((r) => r.json()).then(setProfile);
+    fetch(`/api/progress/${id}`).then((r) => r.json()).then(setProgress);
+    fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
     const u = localStorage.getItem("user");
     if (u) try { setMyUser(JSON.parse(u)); } catch {}
   }, [id]);
@@ -59,6 +63,24 @@ export default function PublicProfile() {
           )}
         </div>
       ) : null}
+
+      {progress && Object.keys(progress.bySubject || {}).length > 0 && (
+        <div className="bg-white p-6 rounded-xl border shadow-sm mb-6">
+          <h3 className="font-semibold mb-3">Subject Mastery</h3>
+          <div className="space-y-2">
+            {Object.entries(progress.bySubject).map(([sid, v]: any) => {
+              const sub = subjects.find((s: any) => s.id === sid);
+              const pct = v.total ? Math.round((v.correct / v.total) * 100) : 0;
+              return (
+                <div key={sid}>
+                  <div className="flex justify-between text-xs mb-1"><span>{sub?.name || "?"}</span><span className="text-gray-500">{pct}% ({v.correct}/{v.total})</span></div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-400"}`} style={{ width: `${pct}%` }} /></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 text-center">
         <Link to="/leaderboard" className="text-green-600 hover:underline text-sm">View Leaderboard</Link>

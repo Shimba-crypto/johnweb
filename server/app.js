@@ -1628,10 +1628,16 @@ app.get("/api/admin/payments", adminAuth, (req, res) => {
 
 // ─── AI FEEDBACK ──────────────────────────────────────────
 app.post("/api/ai-feedback", auth, async (req, res) => {
-  const { question, answer, modelAnswer } = req.body;
+  const { question, answer, modelAnswer, mode } = req.body;
   if (!question) return res.status(400).json({ error: "question required" });
-  if (!answer || !answer.trim()) return res.status(400).json({ error: "Write your answer first, then get AI feedback." });
-  const prompt = `Question: ${question}\nStudent answer: ${answer}\nModel answer: ${modelAnswer || "N/A"}\n\nAs a Zambian ECZ teacher, give brief feedback (max 4 sentences): what was correct, what was missing/wrong, and a suggestion. Format: "Correct: ... | Improve: ... | Tip: ..."`;
+  let prompt;
+  if (mode === "explain") {
+    if (!answer || !answer.trim()) return res.status(400).json({ error: "Write your answer first, then get an explanation." });
+    prompt = `Question: ${question}\nOptions (if any): ${Array.isArray(req.body.options) ? req.body.options.join(", ") : "none"}\nStudent's (wrong) answer: ${answer}\nCorrect answer: ${modelAnswer || "N/A"}\n\nAs a patient Zambian ECZ teacher for Grade 6/7 students, explain in 3-4 short sentences WHY the correct answer is right and why the student's answer is wrong. Use a simple example. End with an encouraging note. Do not repeat "Correct:/Improve:/Tip:" format.`;
+  } else {
+    if (!answer || !answer.trim()) return res.status(400).json({ error: "Write your answer first, then get AI feedback." });
+    prompt = `Question: ${question}\nStudent answer: ${answer}\nModel answer: ${modelAnswer || "N/A"}\n\nAs a Zambian ECZ teacher, give brief feedback (max 4 sentences): what was correct, what was missing/wrong, and a suggestion. Format: "Correct: ... | Improve: ... | Tip: ..."`;
+  }
   const result = await askFreeAI([{ role: "user", content: prompt }], 300);
   if (!result.text) return res.status(503).json({ error: "AI temporarily unavailable. Try again in a minute." });
   res.json({ feedback: result.text, provider: result.provider });
