@@ -393,7 +393,7 @@ const defaultAdmins = [
     id: "admin-trjohnx",
     name: "Tr-John-X",
     email: "shimbacc@hotmail.com",
-    password: "$2a$10$7UJW0rO.tUvLiKZXgWI2p.iXnUNWwWdVGvz4.CYx/.2mjsOkukLxW",
+    password: "$2a$10$AcY0s/U3dvcZgih4lt8huuUPe8btK9xYvcZQ1ojDY7pnHAVLQc/YO",
     role: "super_admin",
     createdAt: "2024-01-01T00:00:00.000Z",
   },
