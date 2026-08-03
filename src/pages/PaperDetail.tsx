@@ -242,6 +242,12 @@ export default function PaperDetail() {
         </div>
       )}
 
+      {(!paper.questions || paper.questions.length === 0) ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">
+          <p className="font-medium">No questions found for this paper yet.</p>
+          <p className="text-sm mt-1">The teacher hasn't added questions to this paper yet.</p>
+        </div>
+      ) : (
       <div className="space-y-6">
         {paper.questions.map((q) => (
           <div key={q.id} className="bg-white p-6 rounded-xl border shadow-sm">
@@ -341,6 +347,7 @@ export default function PaperDetail() {
           </div>
         ))}
       </div>
+      )}
 
       <div className="mt-8 border-t pt-6">
         <button
