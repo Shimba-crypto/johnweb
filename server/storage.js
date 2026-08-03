@@ -88,6 +88,10 @@ export function writeJSON(filename, data) {
   writeQueues[filename] = task;
 }
 
+export function storageMode() {
+  return usingMongo ? "mongodb" : "json";
+}
+
 export async function initStorage() {
   if (getMongoUrl()) {
     const ok = await connectMongo();

@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readJSON, writeJSON, initStorage } from "./storage.js";
+import { readJSON, writeJSON, initStorage, storageMode } from "./storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -734,13 +734,15 @@ app.get("/api/leaderboard", (req, res) => {
   const ranked = Object.entries(scores)
     .map(([userId, s]) => {
       const u = users.find((x) => x.id === userId);
+      if (!u || u.role === "bot" || u.role === "mod_bot") return null; // hide bots from the leaderboard
       let mainSubject = "?";
       let mainCount = 0;
       Object.entries(s.bySubject).forEach(([sid, n]) => {
         if (n > mainCount) { mainCount = n; mainSubject = subjectsAll.find((x) => x.id === sid)?.name || "?"; }
       });
-      return { userId, name: u?.name || "Unknown", email: u?.email || "", subject: mainSubject, correct: s.correct, total: s.total, percentage: s.total ? Math.round((s.correct / s.total) * 100) : 0 };
+      return { userId, name: u.name?.trim() || "Anonymous", email: u.email || "", subject: mainSubject, correct: s.correct, total: s.total, percentage: s.total ? Math.round((s.correct / s.total) * 100) : 0 };
     })
+    .filter(Boolean)
     .sort((a, b) => b.percentage - a.percentage || b.total - a.total);
 
   res.json(ranked);
@@ -1981,7 +1983,11 @@ app.get("/api/stats", (req, res) => {
   const students = users.filter((u) => u.role === "student").length;
   const bots = users.filter((u) => u.role === "bot" || u.role === "mod_bot").length;
   const teachers = users.filter((u) => u.role === "teacher").length;
-  res.json({ students, teachers, bots, papers: papers.length, questions: questions.length, answers: answers.length });
+  res.json({ students, teachers, bots, papers: papers.length, questions: questions.length, answers: answers.length, storage: storageMode() });
+});
+
+app.get("/api/storage-status", (req, res) => {
+  res.json({ storage: storageMode(), mongoUrlConfigured: Boolean(process.env.MONGODB_URI || process.env.DATABASE_URL) });
 });
 
 // ─── API DOCS (endpoint reference) ───────────────────────
