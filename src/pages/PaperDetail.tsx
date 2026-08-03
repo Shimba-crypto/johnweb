@@ -29,13 +29,46 @@ export default function PaperDetail() {
   const [finished, setFinished] = useState<any>(null);
   const [finishing, setFinishing] = useState(false);
   const [paperFeedback, setPaperFeedback] = useState<{ text: string; loading: boolean }>({ text: "", loading: false });
+  const [started, setStarted] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const downloadPDF = () => window.print();
 
   useEffect(() => {
     fetch(`/api/papers/${id}`).then((r) => r.json()).then(setPaper);
     setToken(localStorage.getItem("token"));
+    // restore exam timer if one was in progress
+    const stored = localStorage.getItem(`exam-${id}`);
+    if (stored) {
+      try {
+        const t = parseInt(stored, 10);
+        if (t > Date.now() - 60 * 60 * 1000) { setStarted(true); setStartTime(t); }
+        else localStorage.removeItem(`exam-${id}`);
+      } catch {}
+    }
   }, [id]);
+
+  const startExam = () => {
+    const t = Date.now();
+    setStarted(true);
+    setStartTime(t);
+    localStorage.setItem(`exam-${id}`, String(t));
+  };
+
+  // 1 minute per question countdown
+  useEffect(() => {
+    if (!started || !paper || finished) return;
+    const totalSeconds = paper.questions.length * 60;
+    const tick = () => {
+      const remaining = totalSeconds - Math.floor((Date.now() - (startTime || Date.now())) / 1000);
+      setTimeLeft(Math.max(0, remaining));
+      if (remaining <= 0) { clearInterval(interval); finishPaper(); }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [started, paper, finished]);
 
   const finishPaper = async () => {
     if (!token) { alert("Please login to finish the paper"); return; }
@@ -77,6 +110,9 @@ export default function PaperDetail() {
     setResults({});
     setAnswers({});
     setPaperFeedback({ text: "", loading: false });
+    setStarted(false);
+    setStartTime(null);
+    localStorage.removeItem(`exam-${id}`);
   };
 
   const submitAnswer = async (questionId: string) => {
@@ -99,6 +135,28 @@ export default function PaperDetail() {
   };
 
   if (!paper) return <div className="max-w-3xl mx-auto px-4 py-8">Loading...</div>;
+
+  if (!started && !finished) {
+    const minutes = paper.questions.length;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <div className="text-5xl mb-4">⏱️</div>
+        <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
+        <p className="text-gray-500 mb-6">{paper.description}</p>
+        <div className="bg-white p-6 rounded-xl border shadow-sm max-w-sm mx-auto mb-8">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div><div className="text-2xl font-bold text-green-600">{paper.questions.length}</div><div className="text-xs text-gray-500">Questions</div></div>
+            <div><div className="text-2xl font-bold text-orange-600">{minutes}</div><div className="text-xs text-gray-500">Minutes</div></div>
+            <div><div className="text-2xl font-bold text-blue-600">1</div><div className="text-xs text-gray-500">Min/Question</div></div>
+          </div>
+        </div>
+        <button onClick={startExam} className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 text-lg">
+          ▶ Start Exam
+        </button>
+        <p className="text-xs text-gray-400 mt-3">The timer starts now and can't be paused. Submit automatically when time is up.</p>
+      </div>
+    );
+  }
 
   if (finished) {
     const correct = finished.correct || 0;
@@ -162,13 +220,17 @@ export default function PaperDetail() {
         </div>
       </div>
 
-      <Link to={`/paper/${paper.id}/exam`} className="flex items-center justify-between gap-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl p-5 mb-8 hover:opacity-95">
-        <div>
-          <div className="font-bold">📝 Take this paper as a timed exam</div>
-          <div className="text-sm opacity-90">Full-paper session with auto-grading at the end</div>
+      {started && (
+        <div className={`flex items-center justify-between gap-3 rounded-xl p-4 mb-8 ${timeLeft <= 60 ? "bg-red-600 text-white" : "bg-gradient-to-r from-orange-500 to-red-500 text-white"}`}>
+          <div>
+            <div className="font-bold">⏱️ Time Remaining</div>
+            <div className="text-sm opacity-90">1 minute per question · auto-submits at 0</div>
+          </div>
+          <span className="bg-white px-4 py-2 rounded-lg font-bold text-lg tabular-nums">
+            {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+          </span>
         </div>
-        <span className="bg-white text-green-700 px-4 py-2 rounded-lg font-medium text-sm">Start Exam →</span>
-      </Link>
+      )}
 
       <div className="space-y-6">
         {paper.questions.map((q) => (

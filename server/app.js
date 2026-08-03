@@ -228,6 +228,40 @@ app.post("/api/auth/register", (req, res) => {
   res.json({ message: "User created", user: { id: user.id, name: user.name, email: user.email } });
 });
 
+// School/teacher registration link — students only need a name + password.
+// Tagged with the school and teacher so the teacher can see their students.
+app.post("/api/register-student", (req, res) => {
+  const { name, password, school, teacherName, teacherId } = req.body;
+  if (!name || !password) return res.status(400).json({ error: "Name and password are required" });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  const users = readJSON("users.json");
+  const slug = (name + (school || "jws")).toLowerCase().replace(/[^a-z0-9]+/g, ".");
+  let email = `${slug}@student.johnweb.com`;
+  let n = 1;
+  while (users.find((u) => u.email === email)) email = `${slug}.${n++}@student.johnweb.com`;
+  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: "student", tokenVersion: 1, school: school || "", teacherName: teacherName || "", teacherId: teacherId || "", createdAt: new Date().toISOString() };
+  users.push(user);
+  writeJSON("users.json", users);
+  res.json({ message: "Registered successfully!", email, user: { id: user.id, name: user.name, email: user.email, role: user.role, school: user.school, teacherName: user.teacherName } });
+});
+
+// Teacher: list their students
+app.get("/api/teacher/students", (req, res) => {
+  const userId = authUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const users = readJSON("users.json");
+  const teacher = users.find((u) => u.id === userId);
+  if (!teacher) return res.status(404).json({ error: "User not found" });
+  const teacherKey = teacher.teacherId || teacher.id || teacher.email;
+  const students = users.filter((u) => u.role === "student" && (u.teacherId === teacherKey || u.teacherName === teacher.name));
+  const answers = readJSON("answers.json");
+  res.json(students.map((s) => {
+    const sa = answers.filter((a) => a.userId === s.id);
+    return { id: s.id, name: s.name, email: s.email, school: s.school || "", joined: s.createdAt, answers: sa.length, correct: sa.filter((a) => a.isCorrect).length };
+  }));
+});
+
 const loginAttempts = new Map();
 
 app.post("/api/auth/login", (req, res) => {

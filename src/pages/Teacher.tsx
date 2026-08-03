@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Teacher() {
   const [user, setUser] = useState<any>(null);
   const [pending, setPending] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const token = () => localStorage.getItem("token");
@@ -18,7 +19,10 @@ export default function Teacher() {
   }, [navigate]);
 
   useEffect(() => {
-    if (user) fetch("/api/teacher/pending", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setPending);
+    if (user) {
+      fetch("/api/teacher/pending", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setPending);
+      fetch("/api/teacher/students", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setStudents);
+    }
   }, [user]);
 
   const grade = async (answerId: string, isCorrect: boolean) => {
@@ -61,6 +65,36 @@ export default function Teacher() {
           ))}
         </div>
       )}
+
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">My Students ({students.length})</h2>
+          <Link to="/join/primarysteps" className="text-sm text-green-600 hover:underline">Share registration link →</Link>
+        </div>
+        {students.length === 0 ? (
+          <div className="bg-white p-6 rounded-xl border shadow-sm text-center text-gray-500">
+            No students yet. Share the registration link so they can join.
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="grid grid-cols-4 gap-4 p-4 bg-gray-50 text-sm font-medium text-gray-500">
+              <div className="col-span-2">Student</div>
+              <div>Answers</div>
+              <div className="text-right">Accuracy</div>
+            </div>
+            {students.map((s) => (
+              <div key={s.id} className="grid grid-cols-4 gap-4 p-4 border-b last:border-b-0 items-center hover:bg-gray-50">
+                <div className="col-span-2">
+                  <div className="font-medium">{s.name}</div>
+                  <div className="text-xs text-gray-400">{s.school || "—"} · joined {new Date(s.joined).toLocaleDateString()}</div>
+                </div>
+                <div className="text-gray-600">{s.answers}</div>
+                <div className="text-right font-semibold text-green-600">{s.answers ? Math.round((s.correct / s.answers) * 100) : 0}%</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
