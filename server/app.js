@@ -639,6 +639,19 @@ app.post("/api/admin/bots/:id/reset-key", adminAuth, (req, res) => {
   res.json({ id: bot.id, name: bot.name, apiKey });
 });
 
+// Admin update a bot's description / system prompt
+app.put("/api/admin/bots/:id/prompt", adminAuth, (req, res) => {
+  const { description, systemPrompt } = req.body;
+  const users = readJSON("users.json");
+  const bot = users.find((u) => (u.role === "bot" || u.role === "mod_bot") && u.id === req.params.id);
+  if (!bot) return res.status(404).json({ error: "Bot not found" });
+  if (description !== undefined) bot.description = description;
+  if (systemPrompt !== undefined) bot.systemPrompt = systemPrompt;
+  writeJSON("users.json", users);
+  adminLog("bot_prompt_updated", req.user.id, req.user.name, `Updated prompt for ${bot.name}`);
+  res.json({ id: bot.id, name: bot.name, description: bot.description, systemPrompt: bot.systemPrompt });
+});
+
 app.get("/api/bots", (req, res) => {
   const users = readJSON("users.json").filter((u) => u.role === "bot");
   const ratings = readJSON("ratings.json");
@@ -869,6 +882,29 @@ app.post("/api/modbot/flag", (req, res) => {
   const admins = readJSON("users.json").filter((u) => ["admin", "super_admin"].includes(u.role));
   admins.forEach((a) => addNotification(a.id, "flag_review", "Flagged Answer", `${bot.name} flagged an answer: ${reason || "Review needed"}`, "/admin"));
   res.json({ flagged: true });
+});
+
+// MOD bot grades / approves an answer (moderator + grader powers)
+app.post("/api/modbot/review", (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+  const key = auth.slice(7);
+  if (!key.startsWith("modbot-")) return res.status(401).json({ error: "Invalid MOD bot key" });
+  const users = readJSON("users.json");
+  const bot = users.find((u) => u.role === "mod_bot" && botKeyMatches(u, key));
+  if (!bot) return res.status(401).json({ error: "MOD bot not found" });
+  const { answerId, isCorrect, feedback } = req.body;
+  if (!answerId) return res.status(400).json({ error: "answerId required" });
+  const answers = readJSON("answers.json");
+  const idx = answers.findIndex((a) => a.id === answerId);
+  if (idx === -1) return res.status(404).json({ error: "Answer not found" });
+  answers[idx].isCorrect = isCorrect ?? answers[idx].isCorrect;
+  answers[idx].feedback = feedback || `Reviewed by ${bot.name}`;
+  answers[idx].reviewStatus = "reviewed";
+  answers[idx].gradedBy = bot.id;
+  writeJSON("answers.json", answers);
+  addNotification(answers[idx].userId, "answer_graded", "Answer Reviewed", `Your answer was reviewed by ${bot.name}.`, "/profile");
+  res.json(answers[idx]);
 });
 
 // ─── TEACHER ENDPOINTS ─────────────────────────────────────
