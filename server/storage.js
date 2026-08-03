@@ -9,6 +9,7 @@ let client = null;
 let db = null;
 let usingMongo = false;
 const cache = {};
+const writeQueues = {};
 
 function getMongoUrl() {
   return process.env.MONGODB_URI || process.env.DATABASE_URL || "";
@@ -58,13 +59,27 @@ export function readJSON(filename) {
 
 export function writeJSON(filename, data) {
   cache[filename] = data;
-  if (usingMongo) {
-    db.collection(filename.replace(".json", ""))
-      .deleteMany({})
-      .then(() => (data.length > 0 ? db.collection(filename.replace(".json", "")).insertMany(data) : Promise.resolve()))
-      .catch((e) => console.error("Mongo write error:", e.message));
-  }
+  // Always mirror to disk (keeps the JSON fallback in sync)
   writeFile(filename, data);
+  if (!usingMongo) return;
+
+  const coll = db.collection(filename.replace(".json", ""));
+  const prev = writeQueues[filename] || Promise.resolve();
+  // Serialize writes per collection and strip _id so fresh ObjectIds are
+  // always generated — avoids duplicate-key races from concurrent writes.
+  const task = prev
+    .then(async () => {
+      await coll.deleteMany({});
+      if (Array.isArray(data) && data.length > 0) {
+        const docs = data.map(({ _id, ...rest }) => rest);
+        if (docs.length) await coll.insertMany(docs);
+      } else if (data && typeof data === "object" && !Array.isArray(data)) {
+        const { _id, ...rest } = data;
+        await coll.insertOne(rest);
+      }
+    })
+    .catch((e) => console.error("Mongo write error:", e.message));
+  writeQueues[filename] = task;
 }
 
 export async function initStorage() {
