@@ -191,7 +191,20 @@ app.post("/api/auth/register", (req, res) => {
   res.json({ message: "User created", user: { id: user.id, name: user.name, email: user.email } });
 });
 
+const loginAttempts = new Map();
+
 app.post("/api/auth/login", (req, res) => {
+  const emailKey = String(req.body?.email || "").toLowerCase();
+  if (emailKey) {
+    const now = Date.now();
+    const rec = loginAttempts.get(emailKey);
+    if (rec && now - rec.start < 15 * 60 * 1000) {
+      if (rec.count >= 10) return res.status(429).json({ error: "Too many login attempts. Please try again later." });
+      rec.count++;
+    } else {
+      loginAttempts.set(emailKey, { start: now, count: 1 });
+    }
+  }
   const { email, password } = req.body;
   const users = readJSON("users.json");
   const user = users.find((u) => u.email === email);
