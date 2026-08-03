@@ -299,6 +299,25 @@ function adminSecret(req, res, next) {
 app.use("/api/admin", adminSecret);
 app.use("/api/users", adminSecret);
 
+// Public profile (must be registered BEFORE /api/users admin-secret middleware)
+app.get("/api/users/:id/public", (req, res) => {
+  const users = readJSON("users.json");
+  const user = users.find((u) => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const answers = readJSON("answers.json").filter((a) => a.userId === user.id);
+  const ratings = readJSON("ratings.json").filter((r) => r.targetId === user.id);
+  const xp = readJSON("xp.json").find((x) => x.userId === user.id);
+  const correct = answers.filter((a) => a.isCorrect).length;
+  res.json({
+    id: user.id, name: user.name, role: user.role,
+    createdAt: user.createdAt, totalAnswers: answers.length, correct,
+    percentage: answers.length ? Math.round((correct / answers.length) * 100) : 0,
+    avgRating: ratings.length ? Math.round((ratings.reduce((s, r) => s + r.score, 0) / ratings.length) * 10) / 10 : 0,
+    ratingCount: ratings.length, level: xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1, xp: xp?.xp || 0, streak: xp?.streak || 0,
+    badges: xp?.badges || [],
+  });
+});
+
 function getUser(req) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
@@ -1699,25 +1718,6 @@ app.get("/api/progress/:userId", (req, res) => {
     if (day) { if (!byDay[day]) byDay[day] = { correct: 0, total: 0 }; byDay[day].total++; if (a.isCorrect) byDay[day].correct++; }
   });
   res.json({ bySubject, byDay: Object.entries(byDay).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)) });
-});
-
-// ─── PUBLIC PROFILE ──────────────────────────────────────
-app.get("/api/users/:id/public", (req, res) => {
-  const users = readJSON("users.json");
-  const user = users.find((u) => u.id === req.params.id);
-  if (!user) return res.status(404).json({ error: "User not found" });
-  const answers = readJSON("answers.json").filter((a) => a.userId === user.id);
-  const ratings = readJSON("ratings.json").filter((r) => r.targetId === user.id);
-  const xp = readJSON("xp.json").find((x) => x.userId === user.id);
-  const correct = answers.filter((a) => a.isCorrect).length;
-  res.json({
-    id: user.id, name: user.name, role: user.role, emailVerified: user.emailVerified,
-    createdAt: user.createdAt, totalAnswers: answers.length, correct,
-    percentage: answers.length ? Math.round((correct / answers.length) * 100) : 0,
-    avgRating: ratings.length ? Math.round((ratings.reduce((s, r) => s + r.score, 0) / ratings.length) * 10) / 10 : 0,
-    ratingCount: ratings.length, level: xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1, xp: xp?.xp || 0, streak: xp?.streak || 0,
-    badges: xp?.badges || [],
-  });
 });
 
 // ─── GLOBAL STATS ────────────────────────────────────────
