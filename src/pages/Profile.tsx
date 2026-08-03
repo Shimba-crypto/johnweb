@@ -56,6 +56,9 @@ export default function Profile() {
           <span className="text-gray-500"><strong className="text-gray-800">{followers.length}</strong> followers</span>
           <span className="text-gray-500"><strong className="text-gray-800">{following.length}</strong> following</span>
         </div>
+        <div className="mt-3 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 w-fit">
+          ☁️ Progress auto-saves to the cloud — log in on any phone or computer and pick up where you left off.
+        </div>
         {following.length > 0 && (
           <div className="mt-3">
             <span className="text-xs text-gray-400 font-medium">Following: </span>

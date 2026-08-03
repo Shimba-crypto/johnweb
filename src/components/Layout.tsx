@@ -67,6 +67,8 @@ export default function Layout() {
         <SectionLabel>Study</SectionLabel>
         <Link to="/browse" className={linkCls("/browse")}>📚 <span>Past Papers</span></Link>
         <Link to="/quizzes" className={linkCls("/quizzes")}>🎯 <span>Quizzes</span></Link>
+        <Link to="/boss-battle" className={linkCls("/boss-battle")}>🐉 <span>Boss Battle</span></Link>
+        <Link to="/essay" className={linkCls("/essay")}>✍️ <span>Essay Practice</span></Link>
         <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
         <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
         <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>

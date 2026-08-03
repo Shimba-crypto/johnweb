@@ -1843,6 +1843,77 @@ app.post("/api/ai-feedback", auth, async (req, res) => {
   res.json({ feedback: result.text, provider: result.provider });
 });
 
+// ─── AI ENGLISH COMPOSITION GRADING ───────────────────────
+app.post("/api/ai-essay", auth, async (req, res) => {
+  const { title, essay } = req.body;
+  if (!title || !essay || !essay.trim()) return res.status(400).json({ error: "Title and essay are required" });
+  if (essay.length > 8000) return res.status(400).json({ error: "Essay too long (max ~1200 words)" });
+  const words = essay.trim().split(/\s+/).length;
+  const prompt = `Grade this Grade 7 ECZ English composition titled "${title}" (${words} words).
+Essay:
+---
+${essay}
+---
+As a Zambian ECZ English examiner, grade out of 20 using the ECZ composition rubric: Content/Ideas (7), Structure/Organisation (4), Grammar (5), Spelling & Punctuation (4).
+Respond ONLY in this exact format:
+Score: X/20
+Content: X/7 - one line
+Structure: X/4 - one line
+Grammar: X/5 - one line
+Spelling: X/4 - one line
+Feedback: 2-3 sentences on what was good and how to improve.`;
+  const result = await askFreeAI([{ role: "user", content: prompt }], 700);
+  if (!result.text) return res.status(503).json({ error: "AI temporarily unavailable. Try again in a minute." });
+  res.json({ grading: result.text, words, provider: result.provider });
+});
+
+// ─── WEEKLY BOSS BATTLE ───────────────────────────────────
+function currentWeekKey() {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7; // Monday = 0
+  d.setDate(d.getDate() - day);
+  return d.toISOString().slice(0, 10);
+}
+
+app.get("/api/boss-battle", auth, (req, res) => {
+  const questions = readJSON("questions.json");
+  const hard = questions.filter((q) => (q.marks || 1) >= 3);
+  const pool = (hard.length >= 10 ? hard : questions).sort(() => Math.random() - 0.5).slice(0, 10);
+  const battle = pool.map((q) => ({ id: q.id, text: q.text, options: q.options || [], marks: q.marks || 1 }));
+  const results = readJSON("boss-battles.json");
+  const week = currentWeekKey();
+  const done = results.find((r) => r.userId === req.user.id && r.week === week);
+  res.json({ week, battle, alreadyDone: !!done, lastScore: done?.percentage || null });
+});
+
+app.post("/api/boss-battle/submit", auth, (req, res) => {
+  const { answers } = req.body;
+  if (!answers || !Array.isArray(answers) || answers.length === 0) return res.status(400).json({ error: "answers array required" });
+  const questions = readJSON("questions.json");
+  const results = readJSON("boss-battles.json");
+  const week = currentWeekKey();
+  if (results.find((r) => r.userId === req.user.id && r.week === week)) return res.status(400).json({ error: "You already fought this week's boss" });
+  let correct = 0;
+  const detail = answers.map((a) => {
+    const q = questions.find((x) => x.id === a.questionId);
+    if (!q) return { questionId: a.questionId, isCorrect: false };
+    const isCorrect = String(a.content || "").toLowerCase().trim() === String(q.modelAnswer || "").toLowerCase().trim();
+    if (isCorrect) correct++;
+    return { questionId: q.id, text: q.text, isCorrect };
+  });
+  const total = answers.length;
+  const percentage = Math.round((correct / total) * 100);
+  results.push({ id: uuidv4(), userId: req.user.id, week, score: correct, total, percentage, detail, createdAt: new Date().toISOString() });
+  writeJSON("boss-battles.json", results);
+  const xp = Math.round(20 + (percentage / 100) * 80);
+  awardXp(req.user.id, xp, `Boss battle: ${correct}/${total}`);
+  const badge = percentage >= 80 ? "🐉 Boss Slayer" : percentage >= 50 ? "⚔️ Warrior" : "🛡️ Challenger";
+  const xpData = readJSON("xp.json");
+  const rec = xpData.find((x) => x.userId === req.user.id);
+  if (rec && !rec.badges.includes(badge)) { rec.badges.push(badge); writeJSON("xp.json", xpData); }
+  res.json({ score: correct, total, percentage, xp, badge });
+});
+
 // ─── BOOKMARKS ────────────────────────────────────────────
 app.post("/api/bookmarks", auth, (req, res) => {
   const { questionId } = req.body;
@@ -2145,7 +2216,7 @@ app.post("/api/admin/generate-paper-questions", adminAuth, async (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

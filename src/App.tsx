@@ -4,6 +4,8 @@ import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import PaperDetail from "./pages/PaperDetail";
 import ExamMode from "./pages/ExamMode";
+import EssayPractice from "./pages/EssayPractice";
+import BossBattle from "./pages/BossBattle";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
@@ -60,6 +62,8 @@ export default function App() {
         <Route path="/teams" element={<Teams />} />
         <Route path="/quizzes" element={<Quizzes />} />
         <Route path="/quizzes/:id" element={<QuizDetail />} />
+        <Route path="/essay" element={<EssayPractice />} />
+        <Route path="/boss-battle" element={<BossBattle />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/timetable" element={<Timetable />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
