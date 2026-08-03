@@ -11,8 +11,12 @@ export default function Settings() {
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [siteName, setSiteName] = useState("");
   const [siteDesc, setSiteDesc] = useState("");
+  const [adminSecret, setAdminSecret] = useState("");
+  const [secretSaved, setSecretSaved] = useState(false);
   const [msg, setMsg] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => { setSecretSaved(Boolean(localStorage.getItem("adminSecret"))); }, []);
 
   const token = () => localStorage.getItem("token");
 
@@ -147,6 +151,25 @@ export default function Settings() {
           </div>
           <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Save Settings</button>
         </form>
+      )}
+
+      {tab === "admin" && (
+        <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4 mt-4">
+          <h3 className="font-semibold text-lg">Admin Panel Access</h3>
+          <p className="text-sm text-gray-500">The admin panel is protected by an admin secret. Enter it here once to unlock the admin panel in <strong>this browser</strong>. The secret is stored only on this device — never sent to the code or repo.</p>
+          {secretSaved ? (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm flex items-center justify-between">
+              <span>✅ Admin secret is saved in this browser — the admin panel is unlocked.</span>
+              <button onClick={() => { localStorage.removeItem("adminSecret"); setSecretSaved(false); setAdminSecret(""); }} className="text-red-600 hover:underline text-xs">Remove</button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input type="password" value={adminSecret} onChange={(e) => setAdminSecret(e.target.value)} placeholder="Enter admin secret" className="flex-1 p-2 border rounded-lg font-mono text-sm" />
+              <button onClick={() => { if (!adminSecret.trim()) return alert("Enter the admin secret"); localStorage.setItem("adminSecret", adminSecret.trim()); setSecretSaved(true); setAdminSecret(""); }} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm">Unlock Admin</button>
+            </div>
+          )}
+          <p className="text-xs text-gray-400">This unlocks the web admin panel for super admins only. Anyone with the secret and a super_admin login can manage the app.</p>
+        </div>
       )}
     </div>
   );

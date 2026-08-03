@@ -113,6 +113,8 @@ export default function Admin() {
   if (!user) return <div className="max-w-6xl mx-auto px-4 py-8">Loading...</div>;
   if (user.role !== "super_admin") return <div className="max-w-6xl mx-auto px-4 py-8 text-center text-red-600">Super Admin access required</div>;
 
+  const secretUnlocked = Boolean(localStorage.getItem("adminSecret"));
+
   const totalPapers = papers.length;
   const totalQuestions = stats?.questions || 0;
   const pendingAnswers = allAnswers.filter((a) => a.reviewStatus === "pending").length;
@@ -133,6 +135,11 @@ export default function Admin() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {!secretUnlocked && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-3">
+          <p className="text-sm text-yellow-800">🔒 <strong>Admin panel locked.</strong> Enter your admin secret in <Link to="/settings" className="underline font-medium">Settings → Admin Panel Access</Link> to unlock it in this browser.</p>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>

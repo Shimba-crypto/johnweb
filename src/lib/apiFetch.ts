@@ -3,8 +3,10 @@ const origFetch = window.fetch.bind(window);
 export function installAuthFetch() {
   window.fetch = async (input, init) => {
     const token = localStorage.getItem("token");
+    const adminSecret = localStorage.getItem("adminSecret");
     const headers: any = { ...(init?.headers || {}) };
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (adminSecret) headers["x-admin-secret"] = adminSecret;
 
     const res = await origFetch(input, { ...init, headers });
 
