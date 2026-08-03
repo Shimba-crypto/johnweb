@@ -273,6 +273,7 @@ export default function Admin() {
                 <button onClick={createModBot} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Create MOD Bot</button>
                 <a href="/admin/post-news" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Post News</a>
                 <button onClick={downloadBackup} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">💾 Download Backup</button>
+                <a href="/admin/bulk-import" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">📥 Bulk Import Questions</a>
                 <a href="/settings" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Settings</a>
               </div>
             </div>

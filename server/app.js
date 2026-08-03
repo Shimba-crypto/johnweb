@@ -1762,6 +1762,66 @@ app.get("/api/admin/backups", adminAuth, (req, res) => {
   res.json(backups);
 });
 
+// ─── BULK QUESTION IMPORTER ───────────────────────────────
+function parseQuestions(raw) {
+  const blocks = raw.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  const parsed = [];
+  blocks.forEach((block, bi) => {
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    let question = "";
+    const options = [];
+    let answer = "";
+    let marks = 2;
+    lines.forEach((line) => {
+      const ansMatch = line.match(/^(?:answer|ans)\s*[:=]\s*(.+)/i);
+      const marksMatch = line.match(/^marks?\s*[:=]\s*(\d+)/i);
+      const optMatch = line.match(/^[A-D][).\]]\s*(.+)/i);
+      if (marksMatch) marks = parseInt(marksMatch[1]);
+      else if (ansMatch) answer = ansMatch[1].trim();
+      else if (optMatch) options.push(optMatch[1].trim());
+      else {
+        const cleaned = line.replace(/^\d+[.)]\s*/, "").replace(/^Q\d+[.)]\s*/i, "");
+        if (question) question += " " + cleaned;
+        else question = cleaned;
+      }
+    });
+    if (!question) return;
+    const type = options.length >= 2 ? "mcq" : "open";
+    parsed.push({ text: question, options, answer, marks: marks || 2, type });
+  });
+  return parsed;
+}
+
+app.post("/api/admin/bulk-import", adminAuth, (req, res) => {
+  const { paperId, text } = req.body;
+  if (!paperId || !text) return res.status(400).json({ error: "paperId and text required" });
+  const papers = readJSON("papers.json");
+  if (!papers.find((p) => p.id === paperId)) return res.status(404).json({ error: "Paper not found" });
+  const parsed = parseQuestions(text);
+  if (parsed.length === 0) return res.status(400).json({ error: "No questions could be parsed" });
+  const questions = readJSON("questions.json");
+  const existing = questions.filter((q) => q.paperId === paperId);
+  const startNum = existing.length ? Math.max(...existing.map((q) => q.questionNumber)) + 1 : 1;
+  const added = [];
+  parsed.forEach((p, i) => {
+    questions.push({
+      id: uuidv4(),
+      paperId,
+      questionNumber: startNum + i,
+      text: p.text,
+      marks: p.marks,
+      modelAnswer: p.answer,
+      type: p.type,
+      options: p.options,
+    });
+    added.push({ questionNumber: startNum + i, text: p.text.slice(0, 60), type: p.type });
+  });
+  writeJSON("questions.json", questions);
+  adminLog("bulk_import", req.user.id, req.user.name, `${added.length} questions added to ${paperId}`);
+  res.json({ added: added.length, questions: added });
+});
+
 // Init empty data files
 ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
