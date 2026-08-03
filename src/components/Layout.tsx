@@ -19,6 +19,27 @@ export default function Layout() {
     return () => window.removeEventListener("storage", check);
   }, [location.pathname]);
 
+  // Refresh role from the server so role changes (e.g. promoted to admin) take effect
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) return;
+    fetch("/api/auth/me", { headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error || !d.id) return;
+        const old = localStorage.getItem("user");
+        try {
+          const prev = old ? JSON.parse(old) : {};
+          if (prev.role !== d.role || prev.name !== d.name) {
+            const updated = { ...prev, ...d };
+            localStorage.setItem("user", JSON.stringify(updated));
+            setUser(updated);
+          }
+        } catch {}
+      })
+      .catch(() => {});
+  }, [location.pathname]);
+
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
   useEffect(() => {

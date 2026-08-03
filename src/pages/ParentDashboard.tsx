@@ -19,7 +19,7 @@ export default function ParentDashboard() {
       .then((d) => { if (d.error) navigate("/login"); else setUser(d); });
     fetch("/api/parent/dashboard", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then(setChildren);
+      .then((d) => setChildren(Array.isArray(d) ? d : []));
   }, [navigate, token]);
 
   const link = async () => {
@@ -31,7 +31,7 @@ export default function ParentDashboard() {
     });
     const d = await res.json();
     if (d.error) setErr(d.error);
-    else { setMsg(d.message + ": " + d.child.name); setCode(""); fetch("/api/parent/dashboard", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then(setChildren); }
+    else { setMsg(d.message + ": " + d.child.name); setCode(""); fetch("/api/parent/dashboard", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then((d2) => setChildren(Array.isArray(d2) ? d2 : [])); }
   };
 
   if (!user) return <div className="max-w-3xl mx-auto px-4 py-8">Loading...</div>;
@@ -60,7 +60,7 @@ export default function ParentDashboard() {
         )}
       </div>
 
-      {children.length === 0 ? (
+      {!Array.isArray(children) || children.length === 0 ? (
         <div className="bg-white p-8 rounded-xl border shadow-sm text-center text-gray-500">
           No children linked yet. Add your child's code above.
         </div>
