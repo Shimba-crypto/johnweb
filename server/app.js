@@ -108,7 +108,8 @@ async function askFreeAI(messages, maxTokens = 300) {
 function sanitize(input, maxLen = 5000) {
   if (typeof input !== "string") return input;
   let s = input.slice(0, maxLen);
-  s = s.replace(/[\u0000-\u001F\u007F]/g, "");
+  // Strip dangerous control chars but PRESERVE tab/newline/carriage-return
+  s = s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
   // Neutralize dangerous HTML elements (frontend escapes output too)
   s = s.replace(/<\s*\/?\s*(script|iframe|object|embed|link|meta|style|base)\b/gi, "&lt;$1");
   // Strip event-handler attributes (onclick, onerror, ...)
