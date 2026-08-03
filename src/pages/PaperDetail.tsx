@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 interface Question {
@@ -33,6 +33,14 @@ export default function PaperDetail() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
+  // Refs keep the timer's auto-submit using the LATEST answers/results (no stale closures)
+  const answersRef = useRef(answers);
+  const resultsRef = useRef(results);
+  const tokenRef = useRef(token);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { resultsRef.current = results; }, [results]);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+
   const downloadPDF = () => window.print();
 
   useEffect(() => {
@@ -60,32 +68,45 @@ export default function PaperDetail() {
   useEffect(() => {
     if (!started || !paper || finished) return;
     const totalSeconds = paper.questions.length * 60;
+    let interval: ReturnType<typeof setInterval> | null = null;
     const tick = () => {
       const remaining = totalSeconds - Math.floor((Date.now() - (startTime || Date.now())) / 1000);
       setTimeLeft(Math.max(0, remaining));
-      if (remaining <= 0) { clearInterval(interval); finishPaper(); }
+      if (remaining <= 0) {
+        if (interval) clearInterval(interval);
+        finishPaperRef.current();
+      }
     };
     tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    interval = setInterval(tick, 1000);
+    return () => { if (interval) clearInterval(interval); };
   }, [started, paper, finished]);
 
+  const finishPaperRef = useRef<() => void>(() => {});
+  const finishingRef = useRef(false);
+  useEffect(() => { finishPaperRef.current = finishPaper; });
+
   const finishPaper = async () => {
-    if (!token) { alert("Please login to finish the paper"); return; }
+    const t = tokenRef.current;
+    if (!t) { alert("Please login to finish the paper"); return; }
+    if (finishingRef.current) return;
+    finishingRef.current = true;
     setFinishing(true);
+    const latestAnswers = answersRef.current;
+    const latestResults = resultsRef.current;
     // submit any answered-but-not-yet-submitted questions so results are accurate
     if (paper) {
       for (const q of paper.questions) {
-        if (answers[q.id] && !results[q.id] && answers[q.id].trim()) {
+        if (latestAnswers[q.id] && !latestResults[q.id] && latestAnswers[q.id].trim()) {
           await fetch("/api/answers", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ questionId: q.id, content: answers[q.id] }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+            body: JSON.stringify({ questionId: q.id, content: latestAnswers[q.id] }),
           }).catch(() => {});
         }
       }
     }
-    const res = await fetch(`/api/papers/${id}/results`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`/api/papers/${id}/results`, { headers: { Authorization: `Bearer ${t}` } });
     const data = await res.json();
     setFinished(data);
     // fetch AI feedback
@@ -93,7 +114,7 @@ export default function PaperDetail() {
     try {
       const fb = await fetch("/api/paper-feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify({ title: data.title, results: data.results }),
       });
       const fbData = await fb.json();
@@ -102,6 +123,7 @@ export default function PaperDetail() {
       setPaperFeedback({ text: "Feedback unavailable.", loading: false });
     }
     setFinishing(false);
+    finishingRef.current = false;
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
