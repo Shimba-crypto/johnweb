@@ -37,6 +37,7 @@ import PublicProfile from "./pages/PublicProfile";
 import ApiDocs from "./pages/ApiDocs";
 import Bookmarks from "./pages/Bookmarks";
 import PostNews from "./pages/PostNews";
+import OfflineIndicator from "./components/OfflineIndicator";
 import Achievements from "./pages/Achievements";
 import QuizAnalytics from "./pages/QuizAnalytics";
 import BulkImport from "./pages/BulkImport";
@@ -44,7 +45,9 @@ import JoinSchool from "./pages/JoinSchool";
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <OfflineIndicator />
+      <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/browse" element={<Browse />} />
@@ -88,6 +91,7 @@ export default function App() {
         <Route path="/admin/bulk-import" element={<BulkImport />} />
         <Route path="/join/primarysteps" element={<JoinSchool />} />
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
