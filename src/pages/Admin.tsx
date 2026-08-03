@@ -112,6 +112,17 @@ export default function Admin() {
     } else alert(result.error || "Error creating invite");
   };
 
+  const downloadFullDb = async () => {
+    const t = localStorage.getItem("token");
+    const res = await fetch("/api/admin/db", { headers: { Authorization: `Bearer ${t}` } });
+    if (!res.ok) return alert("Failed to download DB");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `johnweb-full-db-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const downloadBackup = async () => {
     const t = localStorage.getItem("token");
     const res = await fetch("/api/admin/backup", { headers: { Authorization: `Bearer ${t}` } });
@@ -133,7 +144,7 @@ export default function Admin() {
   };
 
   if (!user) return <div className="max-w-6xl mx-auto px-4 py-8">Loading...</div>;
-  if (user.role !== "super_admin") return <div className="max-w-6xl mx-auto px-4 py-8 text-center text-red-600">Super Admin access required</div>;
+  if (user.role !== "super_admin" && user.role !== "omni_super") return <div className="max-w-6xl mx-auto px-4 py-8 text-center text-red-600">Super Admin access required</div>;
 
   const secretUnlocked = Boolean(localStorage.getItem("adminSecret"));
 
@@ -303,6 +314,7 @@ export default function Admin() {
                 <button onClick={createModBot} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Create MOD Bot</button>
                 <a href="/admin/post-news" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Post News</a>
                 <button onClick={downloadBackup} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">💾 Download Backup</button>
+                <button onClick={downloadFullDb} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🗄️ Download Full DB</button>
                 <button onClick={generateCodes} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🎫 Generate Access Codes</button>
                 <button onClick={generateInvite} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🔗 Generate Invite Link</button>
                 <a href="/admin/bulk-import" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">📥 Bulk Import Questions</a>

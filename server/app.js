@@ -438,7 +438,7 @@ app.get("/api/answers/mine", (req, res) => {
   }
 });
 
-const ROLE_HIERARCHY = ["student", "investor", "teacher", "dev", "admin", "super_admin"];
+const ROLE_HIERARCHY = ["student", "investor", "teacher", "dev", "admin", "super_admin", "omni_super"];
 
 // ─── ADMIN SECRET ──────────────────────────────────────────
 // All /api/admin/* and /api/users routes additionally require this secret.
@@ -452,6 +452,9 @@ function getAdminSecret() {
 }
 
 function adminSecret(req, res, next) {
+  // omni_super bypasses the admin secret (highest level of access)
+  const authUser = getUser(req);
+  if (authUser && authUser.role === "omni_super") return next();
   const secret = getAdminSecret();
   if (!secret) return res.status(403).json({ error: "Admin management is disabled. Configure ADMIN_SECRET." });
   const provided = req.headers["x-admin-secret"];
@@ -505,10 +508,10 @@ function requireRole(...roles) {
   };
 }
 
-const adminAuth = requireRole("super_admin");
-const superAdminAuth = requireRole("super_admin");
-const teacherAuth = requireRole("teacher", "admin", "super_admin");
-const staffAuth = requireRole("teacher", "admin", "super_admin", "dev");
+const adminAuth = requireRole("super_admin", "omni_super");
+const superAdminAuth = requireRole("super_admin", "omni_super");
+const teacherAuth = requireRole("teacher", "admin", "super_admin", "omni_super");
+const staffAuth = requireRole("teacher", "admin", "super_admin", "dev", "omni_super");
 
 app.post("/api/admin/subjects", adminAuth, (req, res) => {
   const { name, code, description } = req.body;
@@ -623,7 +626,7 @@ app.put("/api/admin/users/:id/role", (req, res) => {
   req.user = getUser(req);
   if (!req.user) return res.status(401).json({ error: "Unauthorized" });
   const { role } = req.body;
-  const validRoles = ["student", "investor", "teacher", "dev", "admin", "super_admin", "bot", "mod_bot"];
+  const validRoles = ["student", "investor", "teacher", "dev", "admin", "super_admin", "omni_super", "bot", "mod_bot"];
   if (!validRoles.includes(role)) return res.status(400).json({ error: `Invalid role. Valid: ${validRoles.join(", ")}` });
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === req.params.id);
@@ -2540,8 +2543,105 @@ app.post("/api/codes/redeem", (req, res) => {
 });
 
 
+// ─── OMNI-KEY (master key → omni_super) ────────────────────
+function getOmniKey() {
+  if (process.env.OMNI_KEY) return process.env.OMNI_KEY;
+  const settings = readJSON("settings.json");
+  if (settings && settings.omniKey) return settings.omniKey;
+  return "";
+}
+
+app.post("/api/auth/omni", auth, (req, res) => {
+  const { omniKey } = req.body;
+  if (!omniKey) return res.status(400).json({ error: "omniKey required" });
+  const configured = getOmniKey();
+  if (!configured) return res.status(500).json({ error: "OMNI_KEY not configured" });
+  if (omniKey !== configured) return res.status(403).json({ error: "Invalid omni key" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.user.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  users[idx].role = "omni_super";
+  writeJSON("users.json", users);
+  addNotification(req.user.id, "omni_granted", "Omni Access Granted", "You now have omni_super privileges — above all super admins.", "/profile");
+  res.json({ message: "Omni access granted", user: { id: users[idx].id, name: users[idx].name, email: users[idx].email, role: "omni_super" } });
+});
+
+// ─── TIME-LOCK SEAL (fast to seal, slow to open — proof of work) ──
+// Sealing is instant. Opening requires `iterations` SHA-256 rounds (private, slow on purpose).
+app.post("/api/seal", auth, (req, res) => {
+  const { message, iterations } = req.body;
+  if (!message) return res.status(400).json({ error: "message required" });
+  const iters = Math.min(Math.max(parseInt(iterations) || 200000, 10000), 5000000);
+  const crypto = require("crypto");
+  const seed = crypto.createHash("sha256").update(message + Date.now()).digest("hex");
+  const seals = readJSON("seals.json");
+  const seal = { id: uuidv4(), userId: req.user.id, seed, iterations: iters, createdAt: new Date().toISOString() };
+  seals.push(seal);
+  writeJSON("seals.json", seals);
+  res.json({ id: seal.id, iterations: iters, message: "Sealed instantly. Opening requires proof-of-work (~minutes)." });
+});
+
+app.get("/api/seal/:id", auth, (req, res) => {
+  const seal = readJSON("seals.json").find((s) => s.id === req.params.id);
+  if (!seal) return res.status(404).json({ error: "Seal not found" });
+  if (seal.userId !== req.user.id && req.user.role !== "omni_super" && req.user.role !== "super_admin") return res.status(403).json({ error: "Not yours" });
+  res.json({ id: seal.id, iterations: seal.iterations, createdAt: seal.createdAt, opened: Boolean(seal.openedAt) });
+});
+
+app.post("/api/seal/:id/open", auth, (req, res) => {
+  const seals = readJSON("seals.json");
+  const seal = seals.find((s) => s.id === req.params.id);
+  if (!seal) return res.status(404).json({ error: "Seal not found" });
+  if (seal.userId !== req.user.id && req.user.role !== "omni_super" && req.user.role !== "super_admin") return res.status(403).json({ error: "Not yours" });
+  const crypto = require("crypto");
+  // Deliberately slow proof-of-work: iterate SHA-256 `iterations` times.
+  const started = Date.now();
+  let h = Buffer.from(seal.seed, "hex");
+  for (let i = 0; i < seal.iterations; i++) h = crypto.createHash("sha256").update(h).digest();
+  const elapsed = Date.now() - started;
+  seal.openedAt = new Date().toISOString();
+  seal.openedBy = req.user.id;
+  seal.elapsedMs = elapsed;
+  writeJSON("seals.json", seals);
+  res.json({ opened: true, elapsedMs: elapsed, openedAt: seal.openedAt });
+});
+
+// ─── STUDY NOTES BOOK GENERATOR ───────────────────────────
+app.get("/api/notes/book", auth, (req, res) => {
+  const notes = readJSON("notes.json").filter((n) => n.userId === req.user.id);
+  const groups = {};
+  notes.forEach((n) => { const key = n.subject || "General"; (groups[key] = groups[key] || []).push(n); });
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>My Study Notes Book</title>
+<style>body{font-family:Georgia,serif;max-width:700px;margin:auto;padding:40px;color:#1e293b;background:white}
+h1{color:#15803d}.subject{margin:0 0 8px;color:#d97706;font-size:22px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+.note{margin:16px 0;page-break-inside:avoid}.note h3{margin:0 0 4px}.note p{white-space:pre-wrap;color:#374151}
+.date{color:#94a3b8;font-size:12px}@media print{.no-print{display:none}}</style></head><body>
+<div class="no-print" style="text-align:right"><button onclick="window.print()">🖨️ Print / Save PDF</button></div>
+<h1>📖 My Study Notes Book</h1>
+<p style="color:#64748b">Created ${new Date().toLocaleDateString()} · ${req.user.name} · ${notes.length} notes</p>
+${Object.entries(groups).map(([subject, list]) => `
+  <h2 class="subject">${subject}</h2>
+  ${list.map((n) => `<div class="note"><h3>${n.title}</h3><p>${n.content.replace(/</g, "&lt;")}</p><div class="date">${new Date(n.updatedAt).toLocaleDateString()}</div></div>`).join("")}
+`).join("")}
+</body></html>`;
+  res.setHeader("Content-Type", "text/html");
+  res.setHeader("Content-Disposition", "attachment; filename=johnweb-notes-book.html");
+  res.send(html);
+});
+
+// ─── FULL DB DOWNLOAD ─────────────────────────────────────
+app.get("/api/admin/db", adminAuth, (req, res) => {
+  const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith(".json"));
+  const db = {};
+  files.forEach((f) => { db[f] = readJSON(f); });
+  adminLog("db_downloaded", req.user.id, req.user.name, "Full database exported");
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", "attachment; filename=johnweb-full-db.json");
+  res.send(JSON.stringify(db, null, 2));
+});
+
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

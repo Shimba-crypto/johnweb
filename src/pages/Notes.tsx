@@ -40,8 +40,27 @@ export default function Notes() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">Study Notes</h1>
-      <p className="text-gray-500 mb-8">Write and organize your revision notes</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Study Notes</h1>
+          <p className="text-gray-500">Write and organize your revision notes</p>
+        </div>
+        {notes.length > 0 && (
+          <a
+            href="/api/notes/book"
+            onClick={(e) => {
+              e.preventDefault();
+              const t = localStorage.getItem("token");
+              fetch("/api/notes/book", { headers: { Authorization: `Bearer ${t}` } })
+                .then((r) => r.blob())
+                .then((blob) => { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "johnweb-notes-book.html"; a.click(); URL.revokeObjectURL(url); });
+            }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+          >
+            📖 Generate Study Book
+          </a>
+        )}
+      </div>
 
       <form onSubmit={save} className="bg-white p-4 rounded-xl border shadow-sm mb-8 space-y-3">
         <h3 className="font-semibold">{editingId ? "Edit Note" : "New Note"}</h3>

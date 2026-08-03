@@ -89,7 +89,7 @@ export default function Layout() {
 
   const roleLink = () => {
     if (!user) return null;
-    if (user.role === "super_admin" || user.role === "admin") return <Link to="/admin" className={linkCls("/admin")}>🛠️ <span>Admin Panel</span></Link>;
+    if (user.role === "omni_super" || user.role === "super_admin" || user.role === "admin") return <Link to="/admin" className={linkCls("/admin")}>🛠️ <span>Admin Panel</span></Link>;
     if (user.role === "teacher") return <Link to="/teacher" className={linkCls("/teacher")}>📝 <span>Grade Answers</span></Link>;
     if (user.role === "investor") return <Link to="/investor" className={linkCls("/investor")}>📊 <span>Analytics</span></Link>;
     return null;
@@ -156,7 +156,7 @@ export default function Layout() {
               <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm shrink-0">{user.name?.[0]?.toUpperCase()}</div>
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">{user.name}</div>
-                <div className="text-xs text-gray-400 truncate">{user.role === "super_admin" ? "Super Admin" : user.role}</div>
+                <div className="text-xs text-gray-400 truncate">{user.role === "super_admin" ? "Super Admin" : user.role === "omni_super" ? "Omni Super" : user.role}</div>
               </div>
             </div>
             <button onClick={logout} title="Logout" className="text-gray-400 hover:text-red-500 ml-2 shrink-0">

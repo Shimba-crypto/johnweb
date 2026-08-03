@@ -13,6 +13,8 @@ export default function Settings() {
   const [siteDesc, setSiteDesc] = useState("");
   const [adminSecret, setAdminSecret] = useState("");
   const [secretSaved, setSecretSaved] = useState(false);
+  const [omniKeyInput, setOmniKeyInput] = useState("");
+  const [omniMsg, setOmniMsg] = useState("");
   const [msg, setMsg] = useState("");
   const navigate = useNavigate();
 
@@ -57,6 +59,22 @@ export default function Settings() {
     const res = await api("PUT", "/api/admin/settings", { deepseekApiKey: deepseekKey, openrouterApiKey: openrouterKey, siteName, siteDescription: siteDesc });
     if (res.error) setMsg(res.error);
     else setMsg("Settings saved!");
+  };
+
+  const verifyOmni = async () => {
+    if (!omniKeyInput.trim()) return alert("Enter the omni key");
+    const t = localStorage.getItem("token");
+    const res = await fetch("/api/auth/omni", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      body: JSON.stringify({ omniKey: omniKeyInput.trim() }),
+    });
+    const data = await res.json();
+    if (data.error) setOmniMsg(data.error);
+    else {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setOmniMsg(`✅ ${data.message}. Reloading...`);
+      setTimeout(() => window.location.reload(), 800);
+    }
   };
 
   const logoutAll = async () => {
@@ -155,6 +173,15 @@ export default function Settings() {
 
       {tab === "admin" && (
         <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4 mt-4">
+          <h3 className="font-semibold text-lg">Omni Access</h3>
+          <p className="text-sm text-gray-500">Enter the <strong>omni key</strong> to become an <strong>omni_super</strong> — the highest level, above all super admins. Grants full access with no admin secret needed.</p>
+          <div className="flex gap-2">
+            <input type="password" value={omniKeyInput} onChange={(e) => setOmniKeyInput(e.target.value)} placeholder="omni key" className="flex-1 p-2 border rounded-lg font-mono text-sm" />
+            <button onClick={verifyOmni} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">Verify Omni</button>
+          </div>
+          {omniMsg && <p className="text-sm text-purple-700">{omniMsg}</p>}
+
+          <hr />
           <h3 className="font-semibold text-lg">Admin Panel Access</h3>
           <p className="text-sm text-gray-500">The admin panel is protected by an admin secret. Enter it here once to unlock the admin panel in <strong>this browser</strong>. The secret is stored only on this device — never sent to the code or repo.</p>
           {secretSaved ? (
