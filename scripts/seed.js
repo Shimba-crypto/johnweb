@@ -455,7 +455,7 @@ subjects.forEach((sub) => {
           description: `ECZ Grade ${grade} ${sub.name} ${year}${p > 1 ? ` Paper ${p}` : ""}`,
           createdAt: `${year}-06-01`,
         });
-        const numQ = grade === "7" ? 5 : 3;
+        const numQ = 10;
         const realQuestions = REAL_QUESTIONS[sub.name]?.[grade];
         const hasReal = realQuestions && realQuestions.length > 0;
         papers[papers.length - 1].source = hasReal ? "real" : "generated";
