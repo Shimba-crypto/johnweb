@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import StarRating from "../components/StarRating";
 import FollowButton from "../components/FollowButton";
 import { usePageTitle } from "../lib/usePageTitle";
+import { renderMarkdown } from "../lib/markdown";
 
 export default function Bots() {
   usePageTitle("AI Tutors");
@@ -99,7 +100,9 @@ export default function Bots() {
               {messages.length === 0 && <p className="text-center text-gray-400 py-8">Ask a question about your ECZ studies...</p>}
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] p-3 rounded-lg text-sm ${m.role === "user" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-800"}`}>{m.text}</div>
+                  <div className={`max-w-[80%] p-3 rounded-lg text-sm ${m.role === "user" ? "bg-green-600 text-white whitespace-pre-wrap" : "bg-gray-100 text-gray-800 prose prose-sm"}`}>
+                    {m.role === "bot" ? <span dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text) }} /> : m.text}
+                  </div>
                 </div>
               ))}
               {sending && <div className="text-center text-gray-400 text-sm">Thinking...</div>}

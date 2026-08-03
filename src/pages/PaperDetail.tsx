@@ -46,23 +46,24 @@ export default function PaperDetail() {
   useEffect(() => {
     fetch(`/api/papers/${id}`).then((r) => r.json()).then(setPaper);
     setToken(localStorage.getItem("token"));
-    // restore exam timer if one was in progress
+  }, [id]);
+
+  // Auto-start the timer as soon as the paper loads
+  useEffect(() => {
+    if (!paper || finished) return;
     const stored = localStorage.getItem(`exam-${id}`);
     if (stored) {
       try {
         const t = parseInt(stored, 10);
-        if (t > Date.now() - 60 * 60 * 1000) { setStarted(true); setStartTime(t); }
-        else localStorage.removeItem(`exam-${id}`);
+        if (t > Date.now() - 60 * 60 * 1000) { setStarted(true); setStartTime(t); return; }
+        localStorage.removeItem(`exam-${id}`);
       } catch {}
     }
-  }, [id]);
-
-  const startExam = () => {
     const t = Date.now();
     setStarted(true);
     setStartTime(t);
     localStorage.setItem(`exam-${id}`, String(t));
-  };
+  }, [paper, finished]);
 
   // 1 minute per question countdown
   useEffect(() => {
@@ -220,27 +221,15 @@ export default function PaperDetail() {
         </div>
       </div>
 
-      {started ? (
-        <div className={`flex items-center justify-between gap-3 rounded-xl p-4 mb-8 ${timeLeft <= 60 ? "bg-red-600 text-white" : "bg-gradient-to-r from-orange-500 to-red-500 text-white"}`}>
-          <div>
-            <div className="font-bold">⏱️ Time Remaining</div>
-            <div className="text-sm opacity-90">1 minute per question · auto-submits at 0</div>
-          </div>
-          <span className="bg-white px-4 py-2 rounded-lg font-bold text-lg tabular-nums">
-            {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
-          </span>
+      <div className={`flex items-center justify-between gap-3 rounded-xl p-4 mb-8 border-2 ${timeLeft <= 60 ? "bg-red-600 border-red-700 text-white" : "bg-gradient-to-r from-orange-500 to-red-500 border-orange-600 text-white"}`}>
+        <div>
+          <div className="font-bold">⏱️ Time Remaining</div>
+          <div className="text-sm opacity-95">{paper.questions.length} questions · 1 min each · auto-submits at 0</div>
         </div>
-      ) : (
-        <div className="flex items-center justify-between gap-3 rounded-xl p-4 mb-8 bg-gray-100 border">
-          <div>
-            <div className="font-bold">⏱️ Practice mode</div>
-            <div className="text-sm text-gray-500">No timer. Answer at your own pace.</div>
-          </div>
-          <button onClick={startExam} className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600">
-            ▶ Start Timer ({paper.questions.length} min)
-          </button>
-        </div>
-      )}
+        <span className="bg-white px-4 py-2 rounded-lg font-bold text-lg tabular-nums text-gray-900">
+          {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}
+        </span>
+      </div>
 
       {(!paper.questions || paper.questions.length === 0) ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center text-yellow-800">

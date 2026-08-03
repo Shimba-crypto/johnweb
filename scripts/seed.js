@@ -48,6 +48,123 @@ const REAL_QUESTIONS = {
       { text: "Convert 0.75 to a fraction in its simplest form.", marks: 2, answer: "3/4" },
     ],
   },
+  "Physics": {
+    "6": [
+      { text: "What force pulls things towards the ground?", marks: 2, answer: "Gravity", options: ["Gravity", "Friction", "Magnetism", "Wind"] },
+      { text: "Which of these is a source of light?", marks: 2, answer: "The sun", options: ["The sun", "The moon", "A stone", "Water"] },
+      { text: "What happens to ice when you put it in the sun?", marks: 2, answer: "It melts", options: ["It melts", "It freezes", "It turns to stone", "It gets bigger"] },
+    ],
+    "7": [
+      { text: "What is sound produced by?", marks: 3, answer: "Vibrations", options: ["Vibrations", "Light", "Water", "Air only"] },
+      { text: "Which of these is a good conductor of electricity?", marks: 3, answer: "Copper wire", options: ["Copper wire", "Rubber", "Wood", "Plastic"] },
+      { text: "What is a magnet used for?", marks: 3, answer: "Attracting iron and steel", options: ["Attracting iron and steel", "Cutting wood", "Measuring distance", "Boiling water"] },
+      { text: "What is energy?", marks: 3, answer: "The ability to do work", options: ["The ability to do work", "A type of food", "A measure of weight", "A kind of sound"] },
+    ],
+  },
+  "Chemistry": {
+    "6": [
+      { text: "Which of these is a liquid at room temperature?", marks: 2, answer: "Water", options: ["Water", "Ice", "Steam", "Stone"] },
+      { text: "What happens when you mix salt and water?", marks: 2, answer: "The salt dissolves", options: ["The salt dissolves", "The water turns to ice", "The salt sinks forever", "Nothing happens"] },
+      { text: "Which of these is a solid?", marks: 2, answer: "Wood", options: ["Wood", "Milk", "Air", "Rain"] },
+    ],
+    "7": [
+      { text: "What is the chemical symbol for water?", marks: 3, answer: "H2O", options: ["H2O", "CO2", "O2", "NaCl"] },
+      { text: "Which gas do plants use to make food?", marks: 3, answer: "Carbon dioxide", options: ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"] },
+      { text: "What happens when iron is left in water and air?", marks: 3, answer: "It rusts", options: ["It rusts", "It turns to gold", "It melts", "It disappears"] },
+      { text: "What is the name for water in the form of gas?", marks: 3, answer: "Water vapour", options: ["Water vapour", "Ice", "Liquid water", "Rust"] },
+    ],
+  },
+  "Biology": {
+    "6": [
+      { text: "Which animal lives in water and breathes with gills?", marks: 2, answer: "Fish", options: ["Fish", "Bird", "Dog", "Cow"] },
+      { text: "What do plants need to make their own food?", marks: 3, answer: "Sunlight and water", options: ["Sunlight and water", "Only soil", "Only air", "Only darkness"] },
+      { text: "Which part of the body pumps blood?", marks: 2, answer: "Heart", options: ["Heart", "Lungs", "Stomach", "Brain"] },
+    ],
+    "7": [
+      { text: "What do we call animals that eat only plants?", marks: 3, answer: "Herbivores", options: ["Herbivores", "Carnivores", "Omnivores", "Predators"] },
+      { text: "Which organ do we use to breathe?", marks: 3, answer: "Lungs", options: ["Lungs", "Heart", "Kidneys", "Stomach"] },
+      { text: "What is the process by which plants make food called?", marks: 3, answer: "Photosynthesis", options: ["Photosynthesis", "Respiration", "Digestion", "Germination"] },
+      { text: "What do we call a baby frog?", marks: 3, answer: "Tadpole", options: ["Tadpole", "Pup", "Cub", "Calf"] },
+    ],
+  },
+  "Geography": {
+    "6": [
+      { text: "Which is the largest ocean?", marks: 2, answer: "Pacific Ocean", options: ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean"] },
+      { text: "What is the capital city of Zambia?", marks: 2, answer: "Lusaka", options: ["Lusaka", "Ndola", "Kitwe", "Livingstone"] },
+      { text: "Which river flows through the Victoria Falls?", marks: 3, answer: "Zambezi River", options: ["Zambezi River", "Kafue River", "Luangwa River", "Congo River"] },
+    ],
+    "7": [
+      { text: "What is a map used for?", marks: 3, answer: "Finding places and directions", options: ["Finding places and directions", "Cooking food", "Building houses", "Measuring weight"] },
+      { text: "Which of these is a lake in Zambia?", marks: 3, answer: "Lake Bangweulu", options: ["Lake Bangweulu", "Lake Malawi only", "Lake Victoria", "Lake Tanganyika in Tanzania only"] },
+      { text: "What direction does the sun rise in?", marks: 3, answer: "East", options: ["East", "West", "North", "South"] },
+      { text: "What is the weather?", marks: 3, answer: "The condition of the atmosphere at a place and time", options: ["The condition of the atmosphere at a place and time", "The number of rivers", "The height of mountains", "The size of a country"] },
+    ],
+  },
+  "History": {
+    "6": [
+      { text: "Who was the first President of Zambia?", marks: 2, answer: "Kenneth Kaunda", options: ["Kenneth Kaunda", "Levy Mwanawasa", "Michael Sata", "Rupiah Banda"] },
+      { text: "In which year did Zambia get independence?", marks: 2, answer: "1964", options: ["1964", "1960", "1970", "1954"] },
+      { text: "Who discovered the Victoria Falls for the Western world?", marks: 3, answer: "David Livingstone", options: ["David Livingstone", "Cecil Rhodes", "Harry Johnston", "Mungo Park"] },
+    ],
+    "7": [
+      { text: "What was Zambia called before independence?", marks: 3, answer: "Northern Rhodesia", options: ["Northern Rhodesia", "Southern Rhodesia", "Nyasaland", "Tanganyika"] },
+      { text: "Why do we celebrate Independence Day on 24th October?", marks: 3, answer: "Zambia became independent on that day in 1964", options: ["Zambia became independent on that day in 1964", "It is harvest time", "It is the rainy season", "It is the President's birthday"] },
+      { text: "What is the national flag colour that stands for Zambia's land?", marks: 3, answer: "Green", options: ["Green", "Red", "Orange", "Black"] },
+      { text: "What is oral history?", marks: 3, answer: "History passed down by word of mouth", options: ["History passed down by word of mouth", "History written in books only", "A type of music", "A kind of food"] },
+    ],
+  },
+  "Civic Education": {
+    "6": [
+      { text: "What is the name of Zambia's national anthem?", marks: 2, answer: "Stand and Sing of Zambia, Proud and Free", options: ["Stand and Sing of Zambia, Proud and Free", "God Save the King", "The Star-Spangled Banner", "Nkosi Sikelel' iAfrika"] },
+      { text: "Who is the head of state in Zambia?", marks: 2, answer: "The President", options: ["The President", "The Chief Justice", "The Speaker", "The Mayor"] },
+      { text: "What do we call the bird on Zambia's flag?", marks: 2, answer: "African Fish Eagle", options: ["African Fish Eagle", "Ostrich", "Vulture", "Crane"] },
+    ],
+    "7": [
+      { text: "What is democracy?", marks: 3, answer: "Government by the people", options: ["Government by the people", "Government by one person forever", "Government by the army", "Government by foreigners"] },
+      { text: "What does voting allow citizens to do?", marks: 3, answer: "Choose their leaders", options: ["Choose their leaders", "Pay no taxes", "Skip school", "Break the law"] },
+      { text: "Name one responsibility of a citizen.", marks: 3, answer: "Obeying the law", options: ["Obeying the law", "Littering", "Stealing", "Fighting"] },
+      { text: "What are the colours on the Zambian flag?", marks: 3, answer: "Green, red, black and orange", options: ["Green, red, black and orange", "Blue, white and yellow", "Purple and pink", "Only green"] },
+    ],
+  },
+  "Computer Studies": {
+    "6": [
+      { text: "What do we use a computer for?", marks: 2, answer: "Typing and storing information", options: ["Typing and storing information", "Cooking food", "Watering plants", "Cutting grass"] },
+      { text: "Which part of the computer do we use to type?", marks: 2, answer: "Keyboard", options: ["Keyboard", "Mouse", "Screen", "Printer"] },
+      { text: "What shows information on a computer?", marks: 2, answer: "Monitor", options: ["Monitor", "Keyboard", "CPU", "Speaker"] },
+    ],
+    "7": [
+      { text: "What is a mouse used for?", marks: 3, answer: "Moving the cursor on the screen", options: ["Moving the cursor on the screen", "Typing letters", "Printing paper", "Storing files"] },
+      { text: "Which of these is a storage device?", marks: 3, answer: "Flash drive", options: ["Flash drive", "Mouse", "Keyboard", "Monitor"] },
+      { text: "What is the brain of the computer called?", marks: 3, answer: "CPU", options: ["CPU", "Monitor", "Mouse", "Speaker"] },
+      { text: "What does the internet allow us to do?", marks: 3, answer: "Access information and communicate", options: ["Access information and communicate", "Only play music", "Only print", "Only draw"] },
+    ],
+  },
+  "Additional Mathematics": {
+    "6": [
+      { text: "What is 10 + 5?", marks: 2, answer: "15", options: ["15", "5", "105", "50"] },
+      { text: "What is the missing number: 3, 6, 9, ___?", marks: 2, answer: "12", options: ["12", "10", "11", "15"] },
+      { text: "How many sides does a square have?", marks: 2, answer: "4", options: ["4", "3", "5", "6"] },
+    ],
+    "7": [
+      { text: "What is 7 × 8?", marks: 2, answer: "56", options: ["56", "54", "64", "48"] },
+      { text: "What is the square of 6?", marks: 3, answer: "36", options: ["36", "12", "66", "6"] },
+      { text: "What is the value of x if x + 5 = 12?", marks: 3, answer: "7", options: ["7", "17", "5", "12"] },
+      { text: "What is 1/2 of 20?", marks: 3, answer: "10", options: ["10", "20", "5", "2"] },
+    ],
+  },
+  "Religious Education": {
+    "6": [
+      { text: "What is the holy book of Christians called?", marks: 2, answer: "The Bible", options: ["The Bible", "The Quran", "The Torah", "The Vedas"] },
+      { text: "Who is the founder of Islam?", marks: 2, answer: "Prophet Muhammad", options: ["Prophet Muhammad", "Jesus", "Moses", "Abraham"] },
+      { text: "What is a place of worship for Muslims called?", marks: 2, answer: "Mosque", options: ["Mosque", "Church", "Temple", "Synagogue"] },
+    ],
+    "7": [
+      { text: "What is prayer?", marks: 3, answer: "Talking to God", options: ["Talking to God", "Singing songs", "Cooking food", "Playing football"] },
+      { text: "Name the three major world religions.", marks: 3, answer: "Christianity, Islam and Hinduism", options: ["Christianity, Islam and Hinduism", "Only Christianity", "Only Islam", "Only traditional beliefs"] },
+      { text: "What do Christians celebrate at Easter?", marks: 3, answer: "The resurrection of Jesus", options: ["The resurrection of Jesus", "The birth of Jesus", "The end of fasting", "Harvest"] },
+      { text: "Why is the Bible important to Christians?", marks: 3, answer: "It teaches them about God and how to live", options: ["It teaches them about God and how to live", "It is a maths book", "It is a story for fun", "It is a history of animals"] },
+    ],
+  },
   "English Language": {
     "7": [
       { text: "Fill in the blank: The boy ___ to school every day.", marks: 2, answer: "goes", options: ["go", "goes", "going", "gone"] },
@@ -75,91 +192,6 @@ const REAL_QUESTIONS = {
     "9": [
       { text: "Write five sentences describing your best friend.", marks: 5, answer: "Sentences describing physical appearance, personality, and friendship qualities." },
       { text: "Give the plural forms of: child, sheep, tooth, man, ox", marks: 5, answer: "children, sheep, teeth, men, oxen" },
-    ],
-  },
-  "Physics": {
-    "12": [
-      { text: "State Newton's three laws of motion and give an example of each.", marks: 6, answer: "1st: Inertia - a book stays on a table until moved. 2nd: F=ma - pushing a cart. 3rd: Action-reaction - rocket propulsion." },
-      { text: "A stone is dropped from a height of 80 m. Calculate: (a) the time taken to reach the ground (b) the velocity just before impact. (g = 10 m/s²)", marks: 5, answer: "(a) t = √(2h/g) = √(160/10) = 4 s (b) v = gt = 40 m/s" },
-      { text: "Explain the difference between a.c. and d.c. current. Give one source of each.", marks: 4, answer: "DC flows in one direction (battery), AC changes direction periodically (generator/household supply)." },
-      { text: "A transformer has 200 turns in the primary coil and 50 turns in the secondary coil. If the input voltage is 240 V, calculate the output voltage.", marks: 3, answer: "Vs/Vp = Ns/Np, Vs = 240 × 50/200 = 60 V" },
-      { text: "Define specific heat capacity and calculate the energy needed to heat 2 kg of water from 20°C to 100°C. (Specific heat capacity of water = 4200 J/kg°C)", marks: 5, answer: "Q = mcΔT = 2 × 4200 × 80 = 672,000 J" },
-    ],
-    "10": [
-      { text: "Define the term 'force' and give its SI unit.", marks: 2, answer: "Force is a push or pull that can change the state of motion of an object. SI unit: Newton (N)" },
-      { text: "A girl pushes a trolley with a force of 40 N over a distance of 5 m. Calculate the work done.", marks: 3, answer: "Work = Force × Distance = 40 × 5 = 200 J" },
-    ],
-    "9": [
-      { text: "What is the difference between mass and weight?", marks: 3, answer: "Mass is the amount of matter (kg), weight is the force of gravity on the mass (N)." },
-      { text: "A bulb is marked 60 W, 240 V. What does this mean?", marks: 2, answer: "The bulb uses 60 joules of electrical energy per second at 240 volts." },
-    ],
-  },
-  "Chemistry": {
-    "12": [
-      { text: "Balance the following chemical equations: (a) Fe + O₂ → Fe₂O₃ (b) Mg + HCl → MgCl₂ + H₂", marks: 4, answer: "(a) 4Fe + 3O₂ → 2Fe₂O₃ (b) Mg + 2HCl → MgCl₂ + H₂" },
-      { text: "Define an isotope. Give two examples of isotopes of carbon.", marks: 3, answer: "Isotopes are atoms of the same element with same number of protons but different number of neutrons. ¹²C and ¹⁴C." },
-      { text: "Calculate the relative molecular mass of calcium carbonate (CaCO₃). (Ca=40, C=12, O=16)", marks: 3, answer: "RMM = 40 + 12 + 48 = 100" },
-      { text: "What is the pH of a neutral solution? State the pH range for acids and alkalis.", marks: 3, answer: "pH 7 = neutral, acids 0-6, alkalis 8-14" },
-      { text: "Describe how you would prepare a pure sample of copper(II) sulfate crystals from copper(II) oxide and sulfuric acid.", marks: 5, answer: "Add CuO to warm H₂SO₄ until in excess, filter, evaporate filtrate until saturated, cool to crystallize, filter and dry crystals." },
-    ],
-    "10": [
-      { text: "Name three states of matter and give one property of each.", marks: 3, answer: "Solid (fixed shape), Liquid (flows, takes container shape), Gas (fills container)" },
-      { text: "What is the chemical symbol for: sodium, potassium, iron, chlorine?", marks: 2, answer: "Na, K, Fe, Cl" },
-    ],
-    "9": [
-      { text: "What is the difference between an element and a compound?", marks: 2, answer: "An element is made of one type of atom, a compound is made of two or more elements bonded together." },
-      { text: "Name the process used to separate crude oil into its components.", marks: 2, answer: "Fractional distillation" },
-    ],
-  },
-  "Biology": {
-    "12": [
-      { text: "Explain the process of photosynthesis, including the raw materials, conditions, and products.", marks: 5, answer: "Photosynthesis: 6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂. Requires sunlight, chlorophyll, CO₂ from air, H₂O from soil." },
-      { text: "Draw and label a diagram of the human heart showing the four chambers and major blood vessels.", marks: 6, answer: "Diagram showing right/left atria, right/left ventricles, pulmonary artery/vein, aorta, vena cava." },
-      { text: "Describe how the human digestive system breaks down proteins.", marks: 4, answer: "Proteins are broken down by pepsin in stomach (acidic), then trypsin in small intestine (alkaline), into amino acids for absorption." },
-      { text: "What is the function of the following: (a) red blood cells (b) white blood cells (c) platelets", marks: 3, answer: "(a) Transport oxygen (b) Fight infection (c) Blood clotting" },
-      { text: "Explain how the nervous system responds to a stimulus using a reflex arc.", marks: 5, answer: "Stimulus → receptor → sensory neuron → spinal cord → relay neuron → motor neuron → effector → response" },
-    ],
-    "10": [
-      { text: "Name the seven characteristics of living things.", marks: 5, answer: "Movement, Respiration, Sensitivity, Growth, Reproduction, Excretion, Nutrition (MRS GREN)" },
-      { text: "What is the function of the root hairs in plants?", marks: 2, answer: "To absorb water and mineral salts from the soil." },
-    ],
-    "9": [
-      { text: "Name the parts of a microscope and state their functions.", marks: 4, answer: "Eyepiece (magnifies), objective lens (focuses), stage (holds slide), mirror (reflects light)" },
-      { text: "What is the difference between a plant cell and an animal cell?", marks: 3, answer: "Plant cells have cell wall, chloroplasts, and large vacuole; animal cells do not." },
-    ],
-  },
-  "Geography": {
-    "12": [
-      { text: "Define the term 'weathering' and explain the difference between physical and chemical weathering.", marks: 5, answer: "Weathering is the breakdown of rocks in situ. Physical: freeze-thaw action. Chemical: solution/carbonation." },
-      { text: "Describe the formation of a meander and an ox-bow lake.", marks: 5, answer: "River erosion on outer bend (undercutting) and deposition on inner bend creates meander. When meander neck cuts through, ox-bow lake forms." },
-      { text: "With reference to Zambia, explain the factors that influence the distribution of population.", marks: 6, answer: "Climate, soil fertility, mineral deposits (Copperbelt), infrastructure, employment opportunities, historical factors." },
-      { text: "What is the difference between a primary, secondary, and tertiary industry? Give examples of each in Zambia.", marks: 4, answer: "Primary: mining/extraction (copper mining). Secondary: manufacturing (food processing). Tertiary: services (banking, tourism)." },
-      { text: "Explain the causes and effects of deforestation in the Miombo woodlands of Zambia.", marks: 5, answer: "Causes: charcoal burning, agriculture, logging. Effects: soil erosion, loss of biodiversity, climate change, desertification." },
-    ],
-    "10": [
-      { text: "Name the layers of the earth's atmosphere in order from the ground upwards.", marks: 3, answer: "Troposphere, Stratosphere, Mesosphere, Thermosphere, Exosphere" },
-      { text: "What is the difference between weather and climate?", marks: 2, answer: "Weather is day-to-day conditions, climate is average weather over 30+ years." },
-    ],
-    "9": [
-      { text: "Name the continents of the world and their oceans.", marks: 5, answer: "Africa, Asia, Europe, North America, South America, Australia, Antarctica. Oceans: Pacific, Atlantic, Indian, Arctic, Southern" },
-      { text: "What is the capital city of Zambia? Name four neighbouring countries.", marks: 3, answer: "Lusaka. DRC, Tanzania, Malawi, Mozambique, Zimbabwe, Botswana, Namibia, Angola (any 4)" },
-    ],
-  },
-  "History": {
-    "12": [
-      { text: "Describe the causes and effects of the Scramble for Africa in the late 19th century.", marks: 6, answer: "Causes: Industrial Revolution, raw materials, nationalism, missionary work. Effects: colonization, loss of land, cultural disruption, new borders." },
-      { text: "Explain the role of the United Nations Independence Party (UNIP) in Zambia's struggle for independence.", marks: 5, answer: "UNIP led by Kenneth Kaunda used non-violent resistance, civil disobedience, and political mobilization to achieve independence in 1964." },
-      { text: "What were the main causes of World War I?", marks: 5, answer: "Militarism, Alliances (Triple Entente/Alliance), Imperialism, Nationalism, and the assassination of Archduke Franz Ferdinand." },
-      { text: "Describe the effects of the Trans-Atlantic Slave Trade on Africa.", marks: 5, answer: "Population loss, economic disruption, political instability, introduction of firearms, spread of diseases, diaspora." },
-      { text: "Explain the significance of the Berlin Conference of 1884-1885.", marks: 4, answer: "European powers divided Africa without African input, established colonial borders, led to colonization of entire continent." },
-    ],
-    "10": [
-      { text: "Name three early European explorers who visited Zambia and state what they explored.", marks: 3, answer: "David Livingstone (Victoria Falls, Zambezi), Harry Johnston (Nyasa region), Cecil Rhodes (Mashonaland)" },
-      { text: "What is oral tradition and why is it important in African history?", marks: 3, answer: "Oral tradition is passing history through spoken word. Important because much African history was not written down." },
-    ],
-    "9": [
-      { text: "Define the term 'colonialism' and give one example in Africa.", marks: 2, answer: "Colonialism is when a powerful country controls a weaker territory. Example: British colonization of Zambia (Northern Rhodesia)." },
-      { text: "Name the first President of Zambia and the year independence was achieved.", marks: 2, answer: "Kenneth Kaunda, 1964" },
     ],
   },
   "Civic Education": {
@@ -269,6 +301,16 @@ const REAL_QUESTIONS = {
     ],
   },
   "Principles of Accounts": {
+    "6": [
+      { text: "What is money used for?", marks: 2, answer: "To buy goods and services", options: ["To buy goods and services", "To decorate the house", "To make paper", "To clean the floor"] },
+      { text: "Which of these is a way to save money?", marks: 2, answer: "Putting money in a bank account", options: ["Putting money in a bank account", "Spending all money on sweets", "Throwing money away", "Lending money and forgetting"] },
+      { text: "What is the name of Zambia's currency?", marks: 2, answer: "Kwacha", options: ["Kwacha", "Shilling", "Rand", "Dollar"] },
+    ],
+    "7": [
+      { text: "What is a budget?", marks: 3, answer: "A plan for how to spend and save money", options: ["A plan for how to spend and save money", "A type of food", "A school subject", "A kind of car"] },
+      { text: "If you earn K50 and spend K30, how much do you save?", marks: 3, answer: "K20", options: ["K80", "K20", "K30", "K50"] },
+      { text: "Why do people keep money in a bank?", marks: 3, answer: "To keep it safe and earn interest", options: ["To keep it safe and earn interest", "To lose it", "To burn it", "To bury it in the ground"] },
+    ],
     "12": [
       { text: "What is the difference between a debit and a credit in double-entry bookkeeping?", marks: 3, answer: "Debit: left side (assets/expenses increase). Credit: right side (liabilities/income increase). Every transaction has equal debits and credits." },
       { text: "Prepare a trial balance from the following balances: Capital K10,000, Sales K5,000, Purchases K3,000, Rent K500, Cash K2,000, Creditors K1,500, Debtors K1,000.", marks: 5, answer: "Total debits = K6,500, Total credits = K16,500. Needs balancing/correction." },
@@ -276,6 +318,16 @@ const REAL_QUESTIONS = {
     ],
   },
   "Commerce": {
+    "6": [
+      { text: "What is a shop?", marks: 2, answer: "A place where goods are bought and sold", options: ["A place where goods are bought and sold", "A place to sleep", "A type of tree", "A school"] },
+      { text: "What do we call a person who buys goods?", marks: 2, answer: "A customer", options: ["A customer", "A farmer", "A teacher", "A doctor"] },
+      { text: "Which is the smallest unit of Zambian money?", marks: 2, answer: "Ngwee", options: ["Ngwee", "Kwacha", "Shilling", "Cedi"] },
+    ],
+    "7": [
+      { text: "What is trade?", marks: 3, answer: "The buying and selling of goods and services", options: ["The buying and selling of goods and services", "Cooking food", "Playing football", "Planting trees"] },
+      { text: "Which of these is a market?", marks: 3, answer: "Soweto Market", options: ["Soweto Market", "A school", "A hospital", "A police station"] },
+      { text: "What do we call the money a shopkeeper makes after selling?", marks: 3, answer: "Profit", options: ["Profit", "Loss", "Tax", "Debt"] },
+    ],
     "12": [
       { text: "Define 'commerce' and explain its role in economic development.", marks: 4, answer: "Commerce is the exchange of goods and services. It facilitates trade, creates employment, generates revenue, connects producers to consumers." },
       { text: "Describe the functions of a commercial bank in Zambia.", marks: 5, answer: "Accepting deposits, granting loans, facilitating payments, issuing cheques, foreign exchange, safe custody, money transfer." },
@@ -283,6 +335,17 @@ const REAL_QUESTIONS = {
     ],
   },
   "Agricultural Science": {
+    "6": [
+      { text: "Which animal is kept on a farm for its milk?", marks: 2, answer: "Cow", options: ["Cow", "Lion", "Eagle", "Snake"] },
+      { text: "What do plants need to grow?", marks: 3, answer: "Water, sunlight and soil", options: ["Water, sunlight and soil", "Only stones", "Only darkness", "Only sand"] },
+      { text: "What is a vegetable garden for?", marks: 2, answer: "Growing vegetables for food", options: ["Growing vegetables for food", "Keeping cars", "Building houses", "Swimming"] },
+    ],
+    "7": [
+      { text: "Which of these is a farm tool?", marks: 2, answer: "Hoe", options: ["Hoe", "Pencil", "Plate", "Ball"] },
+      { text: "Why do farmers rear chickens?", marks: 3, answer: "For eggs and meat", options: ["For eggs and meat", "For milk", "For wool", "For transport"] },
+      { text: "What is the best soil for growing most crops?", marks: 3, answer: "Loam soil", options: ["Loam soil", "Clay soil", "Sandy soil", "Stony soil"] },
+      { text: "What is crop rotation?", marks: 3, answer: "Growing different crops in the same field in different seasons", options: ["Growing different crops in the same field in different seasons", "Planting only maize every year", "Burning crops", "Watering crops at night"] },
+    ],
     "12": [
       { text: "Explain the importance of agriculture in the Zambian economy.", marks: 4, answer: "Provides food, raw materials, employment, export earnings, contributes to GDP, livelihood for majority." },
       { text: "Describe the process of soil formation.", marks: 4, answer: "Weathering of parent rock, addition of organic matter, leaching, mixing by organisms, horizon formation over thousands of years." },
@@ -290,6 +353,17 @@ const REAL_QUESTIONS = {
     ],
   },
   "Integrated Science": {
+    "6": [
+      { text: "What do we use our eyes for?", marks: 2, answer: "Seeing", options: ["Seeing", "Hearing", "Smelling", "Tasting"] },
+      { text: "Which part of the plant takes in water?", marks: 2, answer: "Roots", options: ["Roots", "Leaves", "Flowers", "Fruits"] },
+      { text: "What is the gas we breathe out?", marks: 2, answer: "Carbon dioxide", options: ["Carbon dioxide", "Oxygen", "Hydrogen", "Nitrogen"] },
+    ],
+    "7": [
+      { text: "Which of these floats on water?", marks: 3, answer: "Wood", options: ["Wood", "Iron nail", "Stone", "Coin"] },
+      { text: "What happens when ice is heated?", marks: 3, answer: "It melts into water", options: ["It melts into water", "It becomes gas", "It turns to stone", "It disappears"] },
+      { text: "Name one renewable source of energy.", marks: 3, answer: "Solar energy", options: ["Solar energy", "Coal", "Petrol", "Diesel"] },
+      { text: "What is the process of a caterpillar turning into a butterfly called?", marks: 3, answer: "Metamorphosis", options: ["Metamorphosis", "Photosynthesis", "Evaporation", "Germination"] },
+    ],
     "9": [
       { text: "Name the main sources of water in Zambia.", marks: 3, answer: "Rivers (Zambezi, Kafue), lakes (Tanganyika, Bangweulu), groundwater, rainfall." },
       { text: "What is the water cycle? Explain the main processes involved.", marks: 4, answer: "Continuous movement of water. Processes: evaporation (water to vapor), condensation (vapor to clouds), precipitation (rain), collection (rivers/lakes)." },
@@ -297,6 +371,11 @@ const REAL_QUESTIONS = {
     ],
   },
   "Creative and Technology Studies": {
+    "6": [
+      { text: "What are the three primary colours?", marks: 3, answer: "Red, blue and yellow", options: ["Red, blue and yellow", "Green, orange and purple", "Black and white", "Pink and brown"] },
+      { text: "What do we use a ruler for?", marks: 2, answer: "Measuring length", options: ["Measuring length", "Cutting paper", "Painting", "Carving wood"] },
+      { text: "Which material is best for making a raincoat?", marks: 2, answer: "Plastic", options: ["Plastic", "Paper", "Cotton cloth", "Wood"] },
+    ],
     "7": [
       { text: "What is the primary colour that cannot be made by mixing other colours?", marks: 2, answer: "Red", options: ["Red", "Orange", "Green", "Purple"] },
       { text: "Which tool is used to cut wood in the workshop?", marks: 2, answer: "Saw", options: ["Hammer", "Saw", "Pliers", "File"] },
@@ -306,6 +385,17 @@ const REAL_QUESTIONS = {
     ],
   },
   "English Literature": {
+    "6": [
+      { text: "In a story, who is the main character called?", marks: 2, answer: "The protagonist", options: ["The protagonist", "The villain", "The narrator", "The author"] },
+      { text: "What is a fairy tale?", marks: 2, answer: "A story with magic and make-believe", options: ["A story with magic and make-believe", "A true news report", "A cooking recipe", "A history textbook"] },
+      { text: "What do we call the person who writes a poem?", marks: 2, answer: "A poet", options: ["A poet", "A pilot", "A painter", "A plumber"] },
+    ],
+    "7": [
+      { text: "What is a fable?", marks: 3, answer: "A short story with animals that teaches a moral lesson", options: ["A short story with animals that teaches a moral lesson", "A long novel", "A science experiment", "A newspaper"] },
+      { text: "What is the 'moral' of a story?", marks: 3, answer: "The lesson the story teaches", options: ["The lesson the story teaches", "The name of the author", "The number of pages", "The setting"] },
+      { text: "What is a proverb?", marks: 3, answer: "A wise saying that gives advice", options: ["A wise saying that gives advice", "A type of dance", "A cooking method", "A school subject"] },
+      { text: "What does 'setting' mean in a story?", marks: 3, answer: "Where and when the story takes place", options: ["Where and when the story takes place", "The main character", "The ending", "The title"] },
+    ],
     "12": [
       { text: "Write an essay on the theme of love in Shakespeare's 'Romeo and Juliet'.", marks: 15, answer: "Essay discussing romantic love, family love, friendship, and how love leads to both joy and tragedy." },
       { text: "Analyze the character of Okonkwo in Chinua Achebe's 'Things Fall Apart'.", marks: 10, answer: "Okonkwo is a tragic hero driven by fear of weakness, his inflexibility leads to his downfall in changing society." },
@@ -370,8 +460,9 @@ subjects.forEach((sub) => {
         const hasReal = realQuestions && realQuestions.length > 0;
         papers[papers.length - 1].source = hasReal ? "real" : "generated";
         for (let q = 1; q <= numQ; q++) {
-          const idx = (p - 1) * numQ + (q - 1);
-          const real = realQuestions?.[idx];
+          // cycle through available real questions so no placeholder text is used
+          const idx = hasReal ? ((p - 1) * numQ + (q - 1)) % realQuestions.length : 0;
+          const real = hasReal ? realQuestions[idx] : undefined;
           const questionType = real?.options ? "mcq" : "open";
           questions.push({
             id: `q-${String(questionCounter).padStart(3, "0")}`,
