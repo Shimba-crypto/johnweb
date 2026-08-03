@@ -37,7 +37,7 @@ export default function Layout() {
     return () => { cancelled = true; };
   }, [location.pathname, user]);
 
-  const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
+  const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("refreshToken"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
 
   const linkCls = (path: string) =>
     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${location.pathname === path ? "bg-green-600 text-white font-medium" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`;

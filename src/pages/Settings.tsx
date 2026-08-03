@@ -55,6 +55,16 @@ export default function Settings() {
     else setMsg("Settings saved!");
   };
 
+  const logoutAll = async () => {
+    if (!confirm("Log out of ALL devices? This revokes every active session, including this one.")) return;
+    const t = localStorage.getItem("token");
+    await fetch("/api/auth/logout-all", { method: "POST", headers: { Authorization: `Bearer ${t}` } }).catch(() => {});
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  };
+
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "super_admin") {
       api("GET", "/api/admin/settings").then((s) => {
@@ -94,17 +104,24 @@ export default function Settings() {
       )}
 
       {tab === "security" && (
-        <form onSubmit={changePassword} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Current Password</label>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="w-full p-2 border rounded-lg" required />
+        <div className="space-y-4">
+          <form onSubmit={changePassword} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Current Password</label>
+              <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="w-full p-2 border rounded-lg" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">New Password</label>
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full p-2 border rounded-lg" required minLength={6} />
+            </div>
+            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Change Password</button>
+          </form>
+          <div className="bg-white p-6 rounded-xl border shadow-sm">
+            <h3 className="font-semibold mb-1">Active Sessions</h3>
+            <p className="text-sm text-gray-500 mb-3">If you suspect your account was compromised, revoke all sessions immediately. You'll need to log in again.</p>
+            <button onClick={logoutAll} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">Log Out of All Devices</button>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">New Password</label>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full p-2 border rounded-lg" required minLength={6} />
-          </div>
-          <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Change Password</button>
-        </form>
+        </div>
       )}
 
       {tab === "admin" && (

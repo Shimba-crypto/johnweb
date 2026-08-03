@@ -18,6 +18,7 @@ export default function Login() {
     const data = await res.json();
     if (res.ok) {
       localStorage.setItem("token", data.token);
+      localStorage.setItem("refreshToken", data.refreshToken || "");
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate("/browse");
     } else {

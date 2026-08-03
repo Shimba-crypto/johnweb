@@ -40,7 +40,7 @@ const corsOptions = {
   },
 };
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 // ─── SECURITY HEADERS ───────────────────────────────────────
 app.use((req, res, next) => {
@@ -176,6 +176,43 @@ app.use("/api/chat", rateLimit(30, 60000));
 app.use("/api/ratings", rateLimit(30, 60000));
 app.use(sanitizeBody);
 
+// ─── SECURITY: token issuance, versioned verification, audit log ───
+function issueTokens(user) {
+  const ver = user.tokenVersion || 1;
+  const accessToken = jwt.sign({ userId: user.id, ver }, JWT_SECRET, { expiresIn: "1h" });
+  const refreshToken = uuidv4();
+  const tokens = readJSON("refresh-tokens.json");
+  tokens.push({ id: refreshToken, userId: user.id, expires: Date.now() + 30 * 24 * 60 * 60 * 1000, createdAt: new Date().toISOString() });
+  writeJSON("refresh-tokens.json", tokens);
+  return { accessToken, refreshToken };
+}
+
+function verifyAuth(token) {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const users = readJSON("users.json");
+    const user = users.find((u) => u.id === payload.userId);
+    if (!user) return null;
+    if ((user.tokenVersion || 1) !== payload.ver) return null; // logged out / rotated
+    return payload;
+  } catch { return null; }
+}
+
+function logSecurity(action, userId, userName, details, req) {
+  const logs = readJSON("admin-logs.json");
+  const ip = req?.ip || req?.socket?.remoteAddress || "?";
+  logs.push({ id: uuidv4(), action, userId, userName, details, ip, type: "security", createdAt: new Date().toISOString() });
+  writeJSON("admin-logs.json", logs);
+}
+
+// Replace scattered jwt.verify calls with version-aware verification
+function authUserId(req) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  const payload = verifyAuth(auth.slice(7));
+  return payload ? payload.userId : null;
+}
+
 app.post("/api/auth/register", (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "All fields are required" });
@@ -185,7 +222,7 @@ app.post("/api/auth/register", (req, res) => {
   // Generic response to avoid user enumeration
   if (users.find((u) => u.email === email)) return res.status(400).json({ error: "Unable to create account. Please check your details and try again." });
   const role = users.length === 0 ? "super_admin" : "student";
-  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, createdAt: new Date().toISOString() };
+  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, tokenVersion: 1, createdAt: new Date().toISOString() };
   users.push(user);
   writeJSON("users.json", users);
   res.json({ message: "User created", user: { id: user.id, name: user.name, email: user.email } });
@@ -195,36 +232,82 @@ const loginAttempts = new Map();
 
 app.post("/api/auth/login", (req, res) => {
   const emailKey = String(req.body?.email || "").toLowerCase();
+  const now = Date.now();
+  let locked = false;
   if (emailKey) {
-    const now = Date.now();
     const rec = loginAttempts.get(emailKey);
-    if (rec && now - rec.start < 15 * 60 * 1000) {
-      if (rec.count >= 10) return res.status(429).json({ error: "Too many login attempts. Please try again later." });
-      rec.count++;
-    } else {
-      loginAttempts.set(emailKey, { start: now, count: 1 });
+    if (rec && rec.lockedUntil && now < rec.lockedUntil) {
+      locked = true;
     }
   }
   const { email, password } = req.body;
   const users = readJSON("users.json");
   const user = users.find((u) => u.email === email);
-  if (!user || !bcrypt.compareSync(password, user.password)) return res.status(401).json({ error: "Invalid credentials" });
-  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  if (locked) {
+    logSecurity("login_locked", "", emailKey, "Account temporarily locked after repeated failures", req);
+    return res.status(423).json({ error: "Account locked due to too many failed attempts. Try again in 15 minutes." });
+  }
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    if (emailKey) {
+      const rec = loginAttempts.get(emailKey) || { fails: 0, lockedUntil: 0 };
+      rec.fails = (rec.fails || 0) + 1;
+      if (rec.fails >= 5) {
+        rec.lockedUntil = now + 15 * 60 * 1000;
+        rec.fails = 0;
+        logSecurity("account_locked", user?.id || "", emailKey, "5 failed login attempts", req);
+      } else {
+        loginAttempts.set(emailKey, rec);
+      }
+    }
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+  if (emailKey) loginAttempts.delete(emailKey);
+  const tokens = issueTokens(user);
+  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
+app.post("/api/auth/refresh", (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ error: "refreshToken required" });
+  const tokens = readJSON("refresh-tokens.json");
+  const idx = tokens.findIndex((t) => t.id === refreshToken);
+  if (idx === -1) return res.status(401).json({ error: "Invalid refresh token" });
+  if (tokens[idx].expires < Date.now()) {
+    tokens.splice(idx, 1);
+    writeJSON("refresh-tokens.json", tokens);
+    return res.status(401).json({ error: "Refresh token expired" });
+  }
+  const user = readJSON("users.json").find((u) => u.id === tokens[idx].userId);
+  if (!user) return res.status(401).json({ error: "User not found" });
+  tokens.splice(idx, 1); // rotate: revoke old
+  writeJSON("refresh-tokens.json", tokens);
+  const newTokens = issueTokens(user);
+  res.json({ token: newTokens.accessToken, refreshToken: newTokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
+app.post("/api/auth/logout-all", (req, res) => {
+  const userId = authUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  users[idx].tokenVersion = (users[idx].tokenVersion || 1) + 1; // invalidates every old JWT
+  writeJSON("users.json", users);
+  let tokens = readJSON("refresh-tokens.json").filter((t) => t.userId !== userId);
+  writeJSON("refresh-tokens.json", tokens);
+  logSecurity("logout_all", userId, users[idx].name, "All sessions revoked", req);
+  res.json({ ok: true });
 });
 
 app.get("/api/auth/me", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
-    const users = readJSON("users.json");
-    const user = users.find((u) => u.id === userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-  }
+  const payload = verifyAuth(auth.slice(7));
+  if (!payload) return res.status(401).json({ error: "Invalid token" });
+  const users = readJSON("users.json");
+  const user = users.find((u) => u.id === payload.userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
 });
 
 app.get("/api/subjects", (req, res) => {
@@ -260,7 +343,7 @@ app.get("/api/answers/mine", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const answers = readJSON("answers.json").filter((a) => a.userId === userId);
     const questions = readJSON("questions.json");
     const papers = readJSON("papers.json");
@@ -321,11 +404,10 @@ app.use("/api/users", adminSecret);
 function getUser(req) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
-  try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
-    const users = readJSON("users.json");
-    return users.find((u) => u.id === userId) || null;
-  } catch { return null; }
+  const payload = verifyAuth(auth.slice(7));
+  if (!payload) return null;
+  const users = readJSON("users.json");
+  return users.find((u) => u.id === payload.userId) || null;
 }
 
 function auth(req, res, next) {
@@ -600,7 +682,7 @@ app.put("/api/auth/profile", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const users = readJSON("users.json");
     const idx = users.findIndex((u) => u.id === userId);
     if (idx === -1) return res.status(404).json({ error: "User not found" });
@@ -615,7 +697,7 @@ app.post("/api/auth/change-password", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) return res.status(400).json({ error: "Current and new password required" });
     const pwErr = validatePassword(newPassword);
@@ -773,7 +855,7 @@ app.post("/api/ratings", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const { targetId, score, comment, targetType } = req.body;
     if (!targetId || !score || !targetType) return res.status(400).json({ error: "targetId, score, targetType required" });
     if (score < 1 || score > 5) return res.status(400).json({ error: "Score must be 1-5" });
@@ -810,7 +892,7 @@ app.get("/api/notifications", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const all = readJSON("notifications.json").filter((n) => n.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const unread = all.filter((n) => !n.read).length;
     res.json({ notifications: all.slice(0, 50), unread });
@@ -828,7 +910,7 @@ app.post("/api/notifications/read-all", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const notifs = readJSON("notifications.json");
     notifs.forEach((n) => { if (n.userId === userId) n.read = true; });
     writeJSON("notifications.json", notifs);
@@ -841,7 +923,7 @@ app.post("/api/answers", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const { questionId, content } = req.body;
     if (!questionId || !content) return res.status(400).json({ error: "questionId and content required" });
     const questions = readJSON("questions.json");
@@ -877,7 +959,7 @@ app.get("/api/export/csv", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const { userId } = jwt.verify(auth.slice(7), JWT_SECRET);
+    const payload = verifyAuth(auth.slice(7)); if (!payload) return res.status(401).json({ error: "Invalid token" }); const userId = payload.userId;
     const answers = readJSON("answers.json").filter((a) => a.userId === userId);
     const questions = readJSON("questions.json");
     const papers = readJSON("papers.json");
@@ -1410,6 +1492,11 @@ app.get("/api/admin/logs", adminAuth, (req, res) => {
   res.json(logs);
 });
 
+app.get("/api/admin/security-log", adminAuth, (req, res) => {
+  const logs = readJSON("admin-logs.json").filter((l) => l.type === "security").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 100);
+  res.json(logs);
+});
+
 function adminLog(action, userId, userName, details) {
   const logs = readJSON("admin-logs.json");
   logs.push({ id: uuidv4(), action, userId, userName, details, createdAt: new Date().toISOString() });
@@ -1937,7 +2024,7 @@ app.post("/api/admin/bulk-import", adminAuth, (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
