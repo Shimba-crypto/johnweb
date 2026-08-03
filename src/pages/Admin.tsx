@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "users";
+type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "users";
 
 export default function Admin() {
   const [user, setUser] = useState<any>(null);
@@ -152,6 +152,7 @@ export default function Admin() {
     { key: "contacts", label: "Contacts" },
     { key: "logs", label: "Logs" },
     { key: "payments", label: "Payments" },
+    { key: "invites", label: "Invites" },
     { key: "users", label: "Users" },
   ];
 
@@ -518,6 +519,8 @@ export default function Admin() {
         </div>
       )}
 
+      {tab === "invites" && <InvitesTab api={api} />}
+
       {tab === "users" && (
         <div>
           <h2 className="text-xl font-semibold mb-4">{users.length} Users</h2>
@@ -587,6 +590,80 @@ export default function Admin() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InvitesTab({ api }: { api: any }) {
+  const [invites, setInvites] = useState<any[]>([]);
+  const [role, setRole] = useState("student");
+  const [school, setSchool] = useState("");
+  const [teacherName, setTeacherName] = useState("");
+  const [maxUses, setMaxUses] = useState(10);
+  const [copied, setCopied] = useState<string>("");
+
+  const load = () => api("GET", "/api/admin/invites").then(setInvites).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await api("POST", "/api/admin/invites", { role, school, teacherName, maxUses });
+    if (result.token) { setSchool(""); setTeacherName(""); load(); }
+    else alert(result.error || "Error");
+  };
+
+  const copy = async (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    if (navigator.clipboard) { try { await navigator.clipboard.writeText(link); setCopied(token); setTimeout(() => setCopied(""), 1500); } catch {} }
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Invite Links</h2>
+
+      <form onSubmit={create} className="bg-white p-5 rounded-xl border shadow-sm mb-6 space-y-4">
+        <h3 className="font-semibold">Create an Invite Link</h3>
+        <div>
+          <label className="block text-sm font-medium mb-1">Invite Type</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setRole("student")} className={`p-4 rounded-xl border-2 text-center transition ${role === "student" ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}>
+              <div className="text-2xl mb-1">🎓</div>
+              <div className="font-semibold">Student Invite</div>
+              <div className="text-xs text-gray-500">Join as a student</div>
+            </button>
+            <button type="button" onClick={() => setRole("teacher")} className={`p-4 rounded-xl border-2 text-center transition ${role === "teacher" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
+              <div className="text-2xl mb-1">👨‍🏫</div>
+              <div className="font-semibold">Teacher Invite</div>
+              <div className="text-xs text-gray-500">Join as a teacher</div>
+            </button>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-3 gap-3">
+          <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="School (optional)" className="p-2 border rounded-lg" />
+          <input value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder="Teacher name (optional)" className="p-2 border rounded-lg" />
+          <input value={maxUses} onChange={(e) => setMaxUses(parseInt(e.target.value) || 1)} placeholder="Max uses" type="number" min="1" className="p-2 border rounded-lg" />
+        </div>
+        <button type="submit" className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 text-sm font-medium">🔗 Generate {role} Invite Link</button>
+      </form>
+
+      <h3 className="font-semibold mb-3">Existing Invites ({invites.length})</h3>
+      {invites.length === 0 && <p className="text-gray-500 text-center py-6">No invites yet.</p>}
+      <div className="space-y-2">
+        {invites.map((inv) => (
+          <div key={inv.id} className="bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded ${inv.role === "teacher" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>{inv.role}</span>
+                <span className="text-xs text-gray-500">{inv.usedCount}/{inv.maxUses} used</span>
+              </div>
+              <div className="text-sm text-gray-600 mt-1 truncate max-w-xs">{window.location.origin}/invite/{inv.token}</div>
+            </div>
+            <button onClick={() => copy(inv.token)} className="text-sm text-blue-600 hover:underline shrink-0">
+              {copied === inv.token ? "✅ Copied" : "Copy"}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
