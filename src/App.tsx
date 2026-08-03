@@ -42,6 +42,9 @@ import Achievements from "./pages/Achievements";
 import QuizAnalytics from "./pages/QuizAnalytics";
 import BulkImport from "./pages/BulkImport";
 import JoinSchool from "./pages/JoinSchool";
+import Battles from "./pages/Battles";
+import BattleRoom from "./pages/BattleRoom";
+import RedeemCode from "./pages/RedeemCode";
 
 export default function App() {
   return (
@@ -90,6 +93,9 @@ export default function App() {
         <Route path="/quiz-analytics" element={<QuizAnalytics />} />
         <Route path="/admin/bulk-import" element={<BulkImport />} />
         <Route path="/join/primarysteps" element={<JoinSchool />} />
+        <Route path="/battles" element={<Battles />} />
+        <Route path="/battle/:id" element={<BattleRoom />} />
+        <Route path="/redeem" element={<RedeemCode />} />
       </Route>
       </Routes>
     </>

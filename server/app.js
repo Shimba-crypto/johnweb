@@ -2439,8 +2439,60 @@ export function migrateData() {
   if (changed) writeJSON("users.json", users);
 }
 
+// ─── ACCESS CODES (sell codes, students redeem) ─────────────
+function genAccessCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 4; i++) { for (let j = 0; j < 4; j++) s += chars[Math.floor(Math.random() * chars.length)]; if (i < 3) s += "-"; }
+  return "JOHN-" + s;
+}
+
+app.post("/api/admin/codes", adminAuth, (req, res) => {
+  const { plan, count } = req.body;
+  const plans = ["k10", "k20", "k30", "k50", "k100"];
+  if (!plans.includes(plan)) return res.status(400).json({ error: "Invalid plan" });
+  const n = Math.min(count || 1, 100);
+  const codes = readJSON("codes.json");
+  const created = [];
+  for (let i = 0; i < n; i++) {
+    let code = genAccessCode();
+    while (codes.find((c) => c.code === code)) code = genCode();
+    const rec = { id: uuidv4(), code, plan, status: "unused", usedBy: null, usedAt: null, createdAt: new Date().toISOString() };
+    codes.push(rec);
+    created.push(code);
+  }
+  writeJSON("codes.json", codes);
+  adminLog("codes_generated", req.user.id, req.user.name, `${n} × ${plan} codes`);
+  res.json({ created: created.length, codes: created });
+});
+
+app.get("/api/admin/codes", adminAuth, (req, res) => {
+  res.json(readJSON("codes.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+});
+
+app.post("/api/codes/redeem", (req, res) => {
+  const userId = authUserId(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: "Code required" });
+  const codes = readJSON("codes.json");
+  const rec = codes.find((c) => c.code.toUpperCase() === String(code).toUpperCase().trim());
+  if (!rec) return res.status(400).json({ error: "Invalid code" });
+  if (rec.status === "used") return res.status(400).json({ error: "This code has already been used" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  rec.status = "used"; rec.usedBy = userId; rec.usedAt = new Date().toISOString();
+  writeJSON("codes.json", codes);
+  users[idx].subscription = rec.plan;
+  writeJSON("users.json", users);
+  addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
+  res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan });
+});
+
+
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

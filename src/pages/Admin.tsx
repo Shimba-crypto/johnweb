@@ -90,6 +90,15 @@ export default function Admin() {
     else alert(result.error || "Error creating bot");
   };
 
+  const generateCodes = async () => {
+    const plan = prompt("Plan for the codes (k10, k20, k30, k50, k100):", "k20");
+    if (!plan) return;
+    const count = parseInt(prompt("How many codes?", "5") || "5");
+    const result = await api("POST", "/api/admin/codes", { plan, count });
+    if (result.codes) alert(`✅ ${result.codes.length} codes created:\n\n${result.codes.join("\n")}\n\nShare these with students to redeem.`);
+    else alert(result.error || "Error creating codes");
+  };
+
   const downloadBackup = async () => {
     const t = localStorage.getItem("token");
     const res = await fetch("/api/admin/backup", { headers: { Authorization: `Bearer ${t}` } });
@@ -280,6 +289,7 @@ export default function Admin() {
                 <button onClick={createModBot} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Create MOD Bot</button>
                 <a href="/admin/post-news" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Post News</a>
                 <button onClick={downloadBackup} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">💾 Download Backup</button>
+                <button onClick={generateCodes} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🎫 Generate Access Codes</button>
                 <a href="/admin/bulk-import" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">📥 Bulk Import Questions</a>
                 <a href="/settings" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Settings</a>
               </div>
