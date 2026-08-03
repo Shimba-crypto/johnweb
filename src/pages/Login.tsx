@@ -20,6 +20,14 @@ export default function Login() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("refreshToken", data.refreshToken || "");
       localStorage.setItem("user", JSON.stringify(data.user));
+      // Save session for quick device profile switching
+      try {
+        const sessions = JSON.parse(localStorage.getItem("jwSessions") || "[]");
+        const entry = { token: data.token, user: data.user };
+        const idx = sessions.findIndex((s: any) => s.user.id === data.user.id);
+        if (idx >= 0) sessions[idx] = entry; else sessions.push(entry);
+        localStorage.setItem("jwSessions", JSON.stringify(sessions.slice(-5)));
+      } catch {}
       navigate("/browse");
     } else {
       setError(data.error);

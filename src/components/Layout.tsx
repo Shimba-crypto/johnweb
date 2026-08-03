@@ -39,6 +39,26 @@ export default function Layout() {
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("refreshToken"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
 
+  const switchAccount = (session: any) => {
+    localStorage.setItem("token", session.token);
+    localStorage.setItem("refreshToken", session.refreshToken || "");
+    localStorage.setItem("user", JSON.stringify(session.user));
+    window.location.href = "/";
+  };
+
+  const removeSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const sessions = JSON.parse(localStorage.getItem("jwSessions") || "[]").filter((s: any) => s.user.id !== id);
+      localStorage.setItem("jwSessions", JSON.stringify(sessions));
+      window.location.reload();
+    } catch {}
+  };
+
+  const savedSessions = (() => {
+    try { return JSON.parse(localStorage.getItem("jwSessions") || "[]"); } catch { return []; }
+  })();
+
   const linkCls = (path: string) =>
     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${location.pathname === path ? "bg-green-600 text-white font-medium" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`;
 
@@ -69,12 +89,16 @@ export default function Layout() {
         <Link to="/quizzes" className={linkCls("/quizzes")}>🎯 <span>Quizzes</span></Link>
         <Link to="/boss-battle" className={linkCls("/boss-battle")}>🐉 <span>Boss Battle</span></Link>
         <Link to="/essay" className={linkCls("/essay")}>✍️ <span>Essay Practice</span></Link>
+        <Link to="/battles" className={linkCls("/battles")}>⚔️ <span>Quiz Battles</span></Link>
+        <Link to="/worksheet" className={linkCls("/worksheet")}>🖨️ <span>Worksheets</span></Link>
+        <Link to="/careers" className={linkCls("/careers")}>🧭 <span>Career Roadmap</span></Link>
         <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
         <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
         <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>
 
         <SectionLabel>Community</SectionLabel>
         <Link to="/leaderboard" className={linkCls("/leaderboard")}>🏆 <span>Leaderboard</span></Link>
+        <Link to="/classes" className={linkCls("/classes")}>🏫 <span>Classes</span></Link>
         <Link to="/bots" className={linkCls("/bots")}>🤖 <span>AI Tutors</span></Link>
         <Link to="/news" className={linkCls("/news")}>📰 <span>News</span></Link>
 
@@ -83,6 +107,7 @@ export default function Layout() {
           <>
             {roleLink()}
             <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
+            <Link to="/parent" className={linkCls("/parent")}>👨‍👩‍👧 <span>Parent Dashboard</span></Link>
             <Link to="/achievements" className={linkCls("/achievements")}>🏅 <span>Achievements</span></Link>
             <Link to="/bookmarks" className={linkCls("/bookmarks")}>🔖 <span>Saved</span></Link>
             <Link to="/settings" className={linkCls("/settings")}>⚙️ <span>Settings</span></Link>
@@ -119,6 +144,21 @@ export default function Layout() {
           <button onClick={() => setDark(!dark)} className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 py-2 hover:text-gray-700">
             {dark ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
+        )}
+
+        {user && savedSessions.length > 1 && (
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Device profiles</div>
+            <div className="space-y-1">
+              {savedSessions.filter((s: any) => s.user.id !== user.id).map((s: any) => (
+                <div key={s.user.id} onClick={() => switchAccount(s)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group">
+                  <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold shrink-0">{s.user.name?.[0]?.toUpperCase()}</div>
+                  <span className="text-xs truncate flex-1">{s.user.name}</span>
+                  <button onClick={(e) => removeSession(s.user.id, e)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 text-xs">✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

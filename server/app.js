@@ -2038,6 +2038,21 @@ app.get("/api/certificate", auth, (req, res) => {
   const xp = readJSON("xp.json").find((x) => x.userId === req.user.id);
   const correct = answers.filter((a) => a.isCorrect).length;
   const pct = answers.length ? Math.round((correct / answers.length) * 100) : 0;
+  const level = xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1;
+  // Save a verifiable certificate record
+  const certs = readJSON("certificates.json");
+  const existing = certs.find((c) => c.userId === req.user.id);
+  let cert;
+  if (existing) {
+    cert = { ...existing, answers: answers.length, correct, pct, level, xp: xp?.xp || 0 };
+    certs[certs.indexOf(existing)] = cert;
+  } else {
+    cert = { id: uuidv4(), userId: req.user.id, name: req.user.name, answers: answers.length, correct, pct, level, xp: xp?.xp || 0, createdAt: new Date().toISOString() };
+    certs.push(cert);
+  }
+  writeJSON("certificates.json", certs);
+  const verifyUrl = `https://johnweb-qncu.onrender.com/verify/cert/${cert.id}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>JohnWeb Certificate</title>
 <style>
@@ -2049,6 +2064,8 @@ app.get("/api/certificate", auth, (req, res) => {
   .cert .sub { font-size: 18px; color: #475569; margin: 10px 0; }
   .cert .date { color: #94a3b8; margin-top: 20px; }
   .cert .footer { display: flex; justify-content: space-between; margin-top: 30px; font-size: 14px; color: #64748b; }
+  .cert .qr { margin-top: 20px; }
+  .cert .qr a { color: #15803d; font-size: 13px; }
 </style></head><body>
 <div class="cert">
   <div style="font-size:20px;color:#d97706;font-weight:bold;">JOHNWEB</div>
@@ -2058,13 +2075,40 @@ app.get("/api/certificate", auth, (req, res) => {
   <div class="sub">has successfully practiced on the JohnWeb ECZ platform</div>
   <div class="line"></div>
   <div style="font-size:18px;color:#15803d;font-weight:bold;">${answers.length} answers · ${correct} correct · ${pct}% accuracy</div>
-  <div style="font-size:16px;color:#475569;margin-top:8px;">Level ${xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1} · ${xp?.xp || 0} XP</div>
+  <div style="font-size:16px;color:#475569;margin-top:8px;">Level ${level} · ${xp?.xp || 0} XP</div>
   <div class="date">Awarded on ${new Date().toLocaleDateString("en-ZM", { year: "numeric", month: "long", day: "numeric" })}</div>
+  <div class="qr"><img src="${qr}" alt="Verify this certificate" width="120" height="120" /><br/><a href="${verifyUrl}">Scan to verify: ${verifyUrl}</a></div>
   <div class="footer"><span>Made in Zambia 🇿🇲</span><span>www.johnweb.com</span></div>
 </div></body></html>`;
+
   res.setHeader("Content-Type", "text/html");
   res.send(html);
 });
+
+// Public certificate verification (no auth)
+app.get("/api/verify/cert/:id", (req, res) => {
+  const certs = readJSON("certificates.json");
+  const cert = certs.find((c) => c.id === req.params.id);
+  if (!cert) return res.status(404).json({ error: "Certificate not found" });
+  const users = readJSON("users.json");
+  const u = users.find((x) => x.id === cert.userId);
+  res.json({ valid: true, name: cert.name, pct: cert.pct, answers: cert.answers, correct: cert.correct, level: cert.level, xp: cert.xp, issued: cert.createdAt, holder: u ? u.name : cert.name });
+});
+
+// ─── CAREER ROADMAP ───────────────────────────────────────
+const CAREERS = [
+  { id: "nurse", career: "Nurse", subjects: ["Science", "Integrated Science", "English Language"], desc: "Care for the sick in clinics and hospitals. Focus on Science and English.", next: ["Grade 9 Science", "Grade 12 Biology"] },
+  { id: "engineer", career: "Engineer", subjects: ["Mathematics", "Additional Mathematics", "Science"], desc: "Design roads, bridges and machines. Mathematics is the key subject.", next: ["Grade 12 Mathematics", "Physics"] },
+  { id: "teacher", career: "Teacher", subjects: ["English Language", "Mathematics", "Social Studies"], desc: "Teach learners in schools. Strong English and Mathematics are essential.", next: ["Grade 12 English", "College of Education"] },
+  { id: "pilot", career: "Pilot / Airline", subjects: ["Mathematics", "English Language", "Science"], desc: "Fly aircraft. Needs excellent Mathematics, English and Science.", next: ["Grade 12 Mathematics", "Aviation training"] },
+  { id: "accountant", career: "Accountant", subjects: ["Mathematics", "English Language", "Principles of Accounts"], desc: "Manage money for businesses. Mathematics and Accounts matter most.", next: ["Grade 12 Accounts", "ZICA"] },
+  { id: "police", career: "Police / Security", subjects: ["Social Studies", "English Language", "Civic Education"], desc: "Serve and protect the community. Fitness and Social Studies are key.", next: ["Grade 12 Civic Education", "Police College"] },
+  { id: "farmer", career: "Farmer / Agriculture", subjects: ["Science", "Agricultural Science", "Mathematics"], desc: "Grow crops and raise animals. Practical Science and Maths help.", next: ["Grade 12 Agricultural Science"] },
+  { id: "programmer", career: "Software Developer", subjects: ["Mathematics", "Computer Studies", "English Language"], desc: "Build apps and websites. Strong Mathematics and Computer Studies lead the way.", next: ["Grade 12 Computer Studies"] },
+  { id: "lawyer", career: "Lawyer", subjects: ["English Language", "History", "Civic Education"], desc: "Defend and advise people on the law. Excellent English is essential.", next: ["Grade 12 English", "Law School"] },
+  { id: "musician", career: "Musician / Artist", subjects: ["Creative & Technology Studies", "English Language"], desc: "Create music and art. Creative Studies and English develop your talent.", next: ["Grade 12 Creative Studies"] },
+];
+app.get("/api/careers", (req, res) => res.json(CAREERS));
 
 // ─── QUIZ ANALYTICS ───────────────────────────────────────
 app.get("/api/quiz-analytics/:quizId", requireRole("teacher", "admin", "super_admin"), (req, res) => {
@@ -2215,7 +2259,156 @@ app.post("/api/admin/generate-paper-questions", adminAuth, async (req, res) => {
   res.json({ added: parsed.length, source: "ai" });
 });
 
-// Init empty data files
+// ─── PARENT DASHBOARD ─────────────────────────────────────
+// A parent links their account to a child using the child's user id as a code.
+app.post("/api/parent/link", auth, (req, res) => {
+  const { childId } = req.body;
+  if (!childId) return res.status(400).json({ error: "childId (code) required" });
+  if (childId === req.user.id) return res.status(400).json({ error: "You cannot add yourself" });
+  const users = readJSON("users.json");
+  const child = users.find((u) => u.id === childId);
+  if (!child) return res.status(404).json({ error: "Invalid code. Ask your child to copy their profile link or id." });
+  if (!child.parents) child.parents = [];
+  if (!child.parents.includes(req.user.id)) child.parents.push(req.user.id);
+  if (!req.user.children) req.user.children = [];
+  if (!req.user.children.includes(childId)) req.user.children.push(childId);
+  writeJSON("users.json", users);
+  res.json({ message: "Child linked", child: { id: child.id, name: child.name } });
+});
+
+app.get("/api/parent/dashboard", auth, (req, res) => {
+  const users = readJSON("users.json");
+  const answers = readJSON("answers.json");
+  const xpData = readJSON("xp.json");
+  const children = (req.user.children || []).map((cid) => {
+    const child = users.find((u) => u.id === cid);
+    if (!child) return null;
+    const ca = answers.filter((a) => a.userId === cid);
+    const correct = ca.filter((a) => a.isCorrect).length;
+    const xp = xpData.find((x) => x.userId === cid);
+    const pct = ca.length ? Math.round((correct / ca.length) * 100) : 0;
+    const streak = xp?.streak || 0;
+    const readiness = pct >= 80 ? "Ready for the exam" : pct >= 50 ? "Getting there" : "Needs more practice";
+    return { id: child.id, name: child.name, answers: ca.length, correct, pct, streak, readiness, xp: xp?.xp || 0 };
+  }).filter(Boolean);
+  res.json({ children });
+});
+
+// ─── SCHOOLS & CLASSES ────────────────────────────────────
+function genCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
+
+app.post("/api/classes", auth, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Class name required" });
+  const classes = readJSON("classes.json");
+  const cls = { id: uuidv4(), name, teacherId: req.user.id, teacherName: req.user.name, joinCode: genCode(), studentIds: [], assignments: [], createdAt: new Date().toISOString() };
+  classes.push(cls);
+  writeJSON("classes.json", classes);
+  res.json(cls);
+});
+
+app.post("/api/classes/join", auth, (req, res) => {
+  const { code } = req.body;
+  const classes = readJSON("classes.json");
+  const cls = classes.find((c) => c.joinCode === (code || "").toUpperCase());
+  if (!cls) return res.status(404).json({ error: "Invalid class code" });
+  if (cls.studentIds.includes(req.user.id)) return res.json({ message: "Already in class", cls });
+  cls.studentIds.push(req.user.id);
+  writeJSON("classes.json", classes);
+  res.json({ message: "Joined class", cls });
+});
+
+app.post("/api/classes/:id/assign", auth, (req, res) => {
+  const { paperId, dueDate } = req.body;
+  if (!paperId) return res.status(400).json({ error: "paperId required" });
+  const classes = readJSON("classes.json");
+  const cls = classes.find((c) => c.id === req.params.id);
+  if (!cls) return res.status(404).json({ error: "Class not found" });
+  if (cls.teacherId !== req.user.id) return res.status(403).json({ error: "Only the teacher can assign" });
+  const papers = readJSON("papers.json");
+  const p = papers.find((x) => x.id === paperId);
+  if (!p) return res.status(404).json({ error: "Paper not found" });
+  const asg = { id: uuidv4(), paperId, paperTitle: p.title, dueDate: dueDate || null, createdAt: new Date().toISOString() };
+  cls.assignments.push(asg);
+  writeJSON("classes.json", classes);
+  cls.studentIds.forEach((sid) => addNotification(sid, "assignment", "New Assignment", `${req.user.name} assigned "${p.title}"`, "/classes"));
+  res.json(asg);
+});
+
+app.get("/api/classes/mine", auth, (req, res) => {
+  const classes = readJSON("classes.json");
+  const mine = classes.filter((c) => c.teacherId === req.user.id || c.studentIds.includes(req.user.id));
+  const users = readJSON("users.json");
+  const answers = readJSON("answers.json");
+  res.json(mine.map((c) => {
+    const isTeacher = c.teacherId === req.user.id;
+    const students = c.studentIds.map((sid) => {
+      const u = users.find((x) => x.id === sid);
+      const sa = answers.filter((a) => a.userId === sid);
+      const correct = sa.filter((a) => a.isCorrect).length;
+      return { id: sid, name: u?.name || "?", answers: sa.length, correct, pct: sa.length ? Math.round((correct / sa.length) * 100) : 0 };
+    });
+    return { ...c, isTeacher, students };
+  }));
+});
+
+// ─── LIVE QUIZ BATTLES ────────────────────────────────────
+app.post("/api/battles", auth, (req, res) => {
+  const { paperId, count } = req.body;
+  const questions = readJSON("questions.json");
+  let pool = questions;
+  if (paperId) pool = questions.filter((q) => q.paperId === paperId);
+  const picked = pool.sort(() => Math.random() - 0.5).slice(0, Math.min(count || 10, 10));
+  const battles = readJSON("battles.json");
+  const battle = {
+    id: uuidv4(), creatorId: req.user.id, creatorName: req.user.name, code: genCode(), status: "open",
+    questions: picked.map((q) => ({ id: q.id, text: q.text, options: q.options || [], marks: q.marks || 1 })),
+    results: [], createdAt: new Date().toISOString(),
+  };
+  battles.push(battle);
+  writeJSON("battles.json", battles);
+  res.json({ id: battle.id, code: battle.code, questions: battle.questions });
+});
+
+app.post("/api/battles/join", auth, (req, res) => {
+  const { code } = req.body;
+  const battles = readJSON("battles.json");
+  const battle = battles.find((b) => b.code === (code || "").toUpperCase());
+  if (!battle) return res.status(404).json({ error: "Battle not found" });
+  if (battle.status !== "open") return res.status(400).json({ error: "Battle already finished" });
+  if (battle.creatorId === req.user.id) return res.json({ ...battle, opponentName: battle.creatorName });
+  if (battle.results.find((r) => r.userId === req.user.id)) return res.json({ ...battle });
+  battle.status = "open";
+  writeJSON("battles.json", battles);
+  res.json({ id: battle.id, code: battle.code, questions: battle.questions, opponentName: battle.creatorName });
+});
+
+app.post("/api/battles/:id/submit", auth, (req, res) => {
+  const { answers } = req.body;
+  const battles = readJSON("battles.json");
+  const battle = battles.find((b) => b.id === req.params.id);
+  if (!battle) return res.status(404).json({ error: "Battle not found" });
+  const questions = readJSON("questions.json");
+  let correct = 0;
+  (answers || []).forEach((a) => {
+    const q = questions.find((x) => x.id === a.questionId);
+    if (q && String(a.content || "").toLowerCase().trim() === String(q.modelAnswer || "").toLowerCase().trim()) correct++;
+  });
+  const total = battle.questions.length;
+  const pct = Math.round((correct / total) * 100);
+  const existing = battle.results.findIndex((r) => r.userId === req.user.id);
+  if (existing >= 0) battle.results[existing] = { userId: req.user.id, name: req.user.name, correct, pct };
+  else battle.results.push({ userId: req.user.id, name: req.user.name, correct, pct });
+  // Battle is done when both creator and one challenger have answered, or when creator answers alone
+  if (battle.results.length >= 2 || (battle.results.length === 1 && battle.results[0].userId === battle.creatorId && battle.results[0].userId !== req.user.id)) battle.status = "finished";
+  else if (battle.results.length === 1 && req.user.id === battle.creatorId && battle.results[0].userId === battle.creatorId) battle.status = "finished";
+  writeJSON("battles.json", battles);
+  const winner = battle.results.length >= 2 ? (battle.results[0].pct >= battle.results[1].pct ? battle.results[0] : battle.results[1]) : battle.results[0];
+  if (battle.status === "finished") awardXp(req.user.id, Math.round(10 + (pct / 100) * 30), `Quiz battle ${correct}/${total}`);
+  res.json({ status: battle.status, results: battle.results, winner: battle.status === "finished" ? winner : null });
+});
+
+
 ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
@@ -2234,5 +2427,11 @@ export function migrateData() {
   });
   if (changed) writeJSON("users.json", users);
 }
+
+// Init empty data files
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json"].forEach((f) => {
+  const fp = path.join(DATA_DIR, f);
+  if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
+});
 
 export default app;

@@ -6,6 +6,12 @@ import PaperDetail from "./pages/PaperDetail";
 import ExamMode from "./pages/ExamMode";
 import EssayPractice from "./pages/EssayPractice";
 import BossBattle from "./pages/BossBattle";
+import VerifyCertificate from "./pages/VerifyCertificate";
+import Careers from "./pages/Careers";
+import ParentDashboard from "./pages/ParentDashboard";
+import Classes from "./pages/Classes";
+import Battles from "./pages/Battles";
+import Worksheet from "./pages/Worksheet";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
@@ -64,6 +70,12 @@ export default function App() {
         <Route path="/quizzes/:id" element={<QuizDetail />} />
         <Route path="/essay" element={<EssayPractice />} />
         <Route path="/boss-battle" element={<BossBattle />} />
+        <Route path="/careers" element={<Careers />} />
+        <Route path="/parent" element={<ParentDashboard />} />
+        <Route path="/classes" element={<Classes />} />
+        <Route path="/battles" element={<Battles />} />
+        <Route path="/worksheet" element={<Worksheet />} />
+        <Route path="/verify/cert/:id" element={<VerifyCertificate />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/timetable" element={<Timetable />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
