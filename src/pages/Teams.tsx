@@ -47,6 +47,18 @@ export default function Teams() {
     fetch("/api/teams").then((r) => r.json()).then(setTeams);
   };
 
+  const setGoal = async (teamId: string) => {
+    const goal = prompt("Set a shared team goal — target number of correct answers:");
+    if (!goal) return;
+    const res = await fetch(`/api/teams/${teamId}/goal`, {
+      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ goal }),
+    });
+    const data = await res.json();
+    if (data.error) alert(data.error);
+    fetch("/api/teams").then((r) => r.json()).then(setTeams);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-2">Teams</h1>
@@ -71,6 +83,23 @@ export default function Teams() {
                 {m.name} ({m.correct}/{m.total})
               </div>
             ))}
+          </div>
+          <div className="mt-5 bg-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">🎯 Team Goal</span>
+              <button onClick={() => setGoal(myTeam.id)} className="text-xs bg-white/20 px-3 py-1 rounded-lg hover:bg-white/30">{myTeam.goal ? "Change goal" : "Set goal"}</button>
+            </div>
+            {myTeam.goal ? (
+              <div>
+                <div className="text-sm mb-2"><strong>{myTeam.totalCorrect}</strong> / {myTeam.goal} correct answers</div>
+                <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${Math.min(100, (myTeam.totalCorrect / myTeam.goal) * 100)}%` }} />
+                </div>
+                {myTeam.totalCorrect >= myTeam.goal && <div className="text-sm font-medium mt-2">🎉 Goal reached! Set a new one.</div>}
+              </div>
+            ) : (
+              <p className="text-sm opacity-80">Set a shared target and work together to hit it.</p>
+            )}
           </div>
         </div>
       )}

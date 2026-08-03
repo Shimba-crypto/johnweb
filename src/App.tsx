@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import PaperDetail from "./pages/PaperDetail";
+import ExamMode from "./pages/ExamMode";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/browse" element={<Browse />} />
         <Route path="/paper/:id" element={<PaperDetail />} />
+        <Route path="/paper/:id/exam" element={<ExamMode />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<Admin />} />

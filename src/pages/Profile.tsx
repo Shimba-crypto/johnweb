@@ -82,6 +82,24 @@ export default function Profile() {
       </div>
 
       {progress && (
+        <div className="mb-8">
+          {(() => {
+            const entries = Object.entries(progress.bySubject || {});
+            const mastered = entries.filter(([, v]: any) => v.total >= 3 && v.correct / v.total >= 0.8).length;
+            return (
+              <div className="bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-lg">📈 Mastery</div>
+                  <div className="text-sm opacity-90">{mastered} of {entries.length} subjects mastered (80%+ accuracy)</div>
+                </div>
+                <div className="text-3xl font-bold">{entries.length ? Math.round((mastered / entries.length) * 100) : 0}%</div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {progress && (
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           <div className="bg-white p-5 rounded-xl border shadow-sm">
             <h3 className="font-semibold mb-3">Accuracy by Subject</h3>

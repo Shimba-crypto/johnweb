@@ -71,6 +71,14 @@ export default function PaperDetail() {
         </div>
       </div>
 
+      <Link to={`/paper/${paper.id}/exam`} className="flex items-center justify-between gap-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl p-5 mb-8 hover:opacity-95">
+        <div>
+          <div className="font-bold">📝 Take this paper as a timed exam</div>
+          <div className="text-sm opacity-90">Full-paper session with auto-grading at the end</div>
+        </div>
+        <span className="bg-white text-green-700 px-4 py-2 rounded-lg font-medium text-sm">Start Exam →</span>
+      </Link>
+
       <div className="space-y-6">
         {paper.questions.map((q) => (
           <div key={q.id} className="bg-white p-6 rounded-xl border shadow-sm">

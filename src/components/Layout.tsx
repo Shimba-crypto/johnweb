@@ -6,6 +6,7 @@ export default function Layout() {
   const [user, setUser] = useState<any>(null);
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
   const [open, setOpen] = useState(false);
+  const [streak, setStreak] = useState<{ streak: number; activeToday: boolean } | null>(null);
   const location = useLocation();
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); localStorage.setItem("theme", dark ? "dark" : "light"); }, [dark]);
@@ -19,6 +20,22 @@ export default function Layout() {
   }, [location.pathname]);
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const t = localStorage.getItem("token");
+    const u = localStorage.getItem("user");
+    if (!t || !u) { setStreak(null); return; }
+    let uid: string | null = null;
+    try { uid = JSON.parse(u).id; } catch {}
+    if (!uid) return;
+    fetch(`/api/gamification/${uid}`).then((r) => r.json()).then((d) => {
+      if (cancelled) return;
+      const activeToday = d.lastActivity ? new Date(d.lastActivity).toDateString() === new Date().toDateString() : false;
+      setStreak({ streak: d.streak || 0, activeToday });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [location.pathname, user]);
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
 
@@ -140,6 +157,12 @@ export default function Layout() {
         </header>
 
         <main className="flex-1">
+          {streak && streak.streak > 0 && !streak.activeToday && (
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white text-center text-sm py-2 px-4">
+              🔥 <strong>{streak.streak}-day streak!</strong> Answer one question today to keep it going.{" "}
+              <Link to="/browse" className="underline font-medium">Practice now →</Link>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

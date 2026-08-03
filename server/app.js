@@ -1139,8 +1139,22 @@ app.get("/api/teams", (req, res) => {
     });
     const totalCorrect = memberData.reduce((s, m) => s + m.correct, 0);
     const totalAnswers = memberData.reduce((s, m) => s + m.total, 0);
-    return { ...t, members: memberData, score: totalAnswers ? Math.round((totalCorrect / totalAnswers) * 100) : 0 };
+    return { ...t, members: memberData, totalCorrect, score: totalAnswers ? Math.round((totalCorrect / totalAnswers) * 100) : 0 };
   }).sort((a, b) => b.score - a.score));
+});
+
+// Set a shared team goal (target number of correct answers)
+app.put("/api/teams/:id/goal", auth, (req, res) => {
+  const { goal } = req.body;
+  const value = parseInt(goal);
+  if (!value || value < 1 || value > 10000) return res.status(400).json({ error: "Goal must be a number between 1 and 10000" });
+  const teams = readJSON("teams.json");
+  const team = teams.find((t) => t.id === req.params.id);
+  if (!team) return res.status(404).json({ error: "Team not found" });
+  if (!team.members.includes(req.user.id)) return res.status(403).json({ error: "You must be a member to set the goal" });
+  team.goal = value;
+  writeJSON("teams.json", teams);
+  res.json({ id: team.id, goal: team.goal });
 });
 
 app.get("/api/my-team", auth, (req, res) => {
