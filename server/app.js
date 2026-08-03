@@ -296,10 +296,7 @@ function adminSecret(req, res, next) {
   next();
 }
 
-app.use("/api/admin", adminSecret);
-app.use("/api/users", adminSecret);
-
-// Public profile (must be registered BEFORE /api/users admin-secret middleware)
+// Public profile must be registered BEFORE the admin-secret middleware below.
 app.get("/api/users/:id/public", (req, res) => {
   const users = readJSON("users.json");
   const user = users.find((u) => u.id === req.params.id);
@@ -317,6 +314,9 @@ app.get("/api/users/:id/public", (req, res) => {
     badges: xp?.badges || [],
   });
 });
+
+app.use("/api/admin", adminSecret);
+app.use("/api/users", adminSecret);
 
 function getUser(req) {
   const auth = req.headers.authorization;
