@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "users";
+type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "analytics" | "users";
 
 export default function Admin() {
   const [user, setUser] = useState<any>(null);
@@ -164,6 +164,7 @@ export default function Admin() {
     { key: "logs", label: "Logs" },
     { key: "payments", label: "Payments" },
     { key: "invites", label: "Invites" },
+    { key: "analytics", label: "Analytics" },
     { key: "users", label: "Users" },
   ];
 
@@ -534,6 +535,8 @@ export default function Admin() {
 
       {tab === "invites" && <InvitesTab api={api} />}
 
+      {tab === "analytics" && <AnalyticsTab token={token} />}
+
       {tab === "users" && (
         <div>
           <h2 className="text-xl font-semibold mb-4">{users.length} Users</h2>
@@ -676,6 +679,77 @@ function InvitesTab({ api }: { api: any }) {
             </button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function Bar({ label, value, max, color = "bg-green-500" }: { label: string; value: number; max: number; color?: string }) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-0.5"><span>{label}</span><span className="text-gray-500">{value}</span></div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full`} style={{ width: `${max ? Math.min(100, (value / max) * 100) : 0}%` }} /></div>
+    </div>
+  );
+}
+
+function AnalyticsTab({ token }: { token: () => string | null }) {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => {
+    fetch("/api/admin/analytics", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setData);
+  }, []);
+  if (!data) return <p className="text-gray-500 text-center py-8">Loading analytics...</p>;
+
+  const maxSignup = Math.max(...data.signups.map((x: any) => x.count), 1);
+  const maxAnswers = Math.max(...data.answersPerDay.map((x: any) => x.count), 1);
+  const maxActive = Math.max(...data.activeUsers.map((x: any) => x.count), 1);
+  const maxSubject = Math.max(...data.subjectPerformance.map((x: any) => x.total), 1);
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-xl border shadow-sm text-center"><div className="text-2xl font-bold text-green-600">{data.totals.users}</div><div className="text-xs text-gray-500">Users ({data.totals.students} students)</div></div>
+        <div className="bg-white p-4 rounded-xl border shadow-sm text-center"><div className="text-2xl font-bold text-blue-600">{data.totals.answers}</div><div className="text-xs text-gray-500">Answers ({data.totals.correct} correct)</div></div>
+        <div className="bg-white p-4 rounded-xl border shadow-sm text-center"><div className="text-2xl font-bold text-orange-600">{data.totals.botMessages}</div><div className="text-xs text-gray-500">Bot messages</div></div>
+        <div className="bg-white p-4 rounded-xl border shadow-sm text-center"><div className="text-2xl font-bold text-purple-600">{data.totals.quizzesTaken}</div><div className="text-xs text-gray-500">Quizzes taken</div></div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">New signups (last 14 days)</h3>
+          <div className="space-y-1.5">{data.signups.map((d: any, i: number) => <Bar key={i} label={d.date.slice(5)} value={d.count} max={maxSignup} color="bg-green-500" />)}</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">Answers per day</h3>
+          <div className="space-y-1.5">{data.answersPerDay.map((d: any, i: number) => <Bar key={i} label={d.date.slice(5)} value={d.count} max={maxAnswers} color="bg-blue-500" />)}</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">Active students per day</h3>
+          <div className="space-y-1.5">{data.activeUsers.map((d: any, i: number) => <Bar key={i} label={d.date.slice(5)} value={d.count} max={maxActive} color="bg-orange-500" />)}</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">Answers by subject</h3>
+          <div className="space-y-1.5">{data.subjectPerformance.slice(0, 10).map((s: any, i: number) => <Bar key={i} label={`${s.subject} (${s.accuracy}%)`} value={s.total} max={maxSubject} color="bg-purple-500" />)}</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">Users by plan</h3>
+          <div className="space-y-1.5">{Object.entries(data.usersByPlan).map(([plan, count]: any, i: number) => <Bar key={i} label={plan} value={count} max={data.totals.users || 1} color="bg-yellow-500" />)}</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">Top papers by views</h3>
+          {data.topPapers.length === 0 && <p className="text-sm text-gray-400">No views yet.</p>}
+          <div className="space-y-2">
+            {data.topPapers.map((p: any, i: number) => (
+              <div key={i} className="flex justify-between text-sm"><span>{p.title} <span className="text-xs text-gray-400">({p.subject})</span></span><span className="font-semibold">{p.views}</span></div>
+            ))}
+          </div>
+          <h3 className="font-semibold mt-4 mb-2">Top study streaks</h3>
+          {data.topStreaks.length === 0 && <p className="text-sm text-gray-400">No streaks yet.</p>}
+          {data.topStreaks.map((s: any, i: number) => <div key={i} className="flex justify-between text-sm"><span>{s.name}</span><span className="font-semibold text-orange-600">🔥{s.streak}</span></div>)}
+          <h3 className="font-semibold mt-4 mb-2">Bot usage</h3>
+          {Object.entries(data.botUsage).map(([name, count]: any, i: number) => <div key={i} className="flex justify-between text-sm"><span>{name}</span><span>{count} msgs</span></div>)}
+          <div className="mt-4 flex justify-between text-sm"><span>Average quiz score</span><span className="font-semibold">{data.avgQuizScore}%</span></div>
+        </div>
       </div>
     </div>
   );

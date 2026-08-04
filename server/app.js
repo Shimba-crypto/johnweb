@@ -929,6 +929,13 @@ app.post("/api/chat/:botId", async (req, res) => {
   const bot = users.find((u) => u.id === botId && u.role === "bot");
   if (!bot) return res.status(404).json({ error: "Bot not found" });
 
+  // track bot usage for analytics
+  try {
+    const stats = readJSON("chat-stats.json");
+    stats.push({ botId, botName: bot.name, at: new Date().toISOString() });
+    writeJSON("chat-stats.json", stats.slice(-5000));
+  } catch {}
+
   const systemPrompt = bot.systemPrompt || `You are ${bot.name}, a Zambian ECZ tutor bot. Help students understand past paper questions. Be concise and educational.`;
   const result = await askFreeAI([
     { role: "system", content: systemPrompt },
@@ -2620,6 +2627,81 @@ ${Object.entries(groups).map(([subject, list]) => `
   res.send(html);
 });
 
+// ─── ADMIN ANALYTICS ───────────────────────────────────────
+app.get("/api/admin/analytics", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const answers = readJSON("answers.json");
+  const papers = readJSON("papers.json");
+  const questions = readJSON("questions.json");
+  const subs = readJSON("subjects.json");
+  const quizResults = readJSON("quiz-results.json");
+  const xp = readJSON("xp.json");
+  const chatStats = readJSON("chat-stats.json");
+  const views = readJSON("paper-views.json");
+  const ratings = readJSON("ratings.json");
+
+  const last14 = (map) => Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).slice(-14).map(([date, count]) => ({ date, count }));
+
+  const signups = {};
+  users.forEach((u) => { const d = u.createdAt?.slice(0, 10); if (d) signups[d] = (signups[d] || 0) + 1; });
+
+  const answersPerDay = {}, activeUsers = {};
+  answers.forEach((a) => {
+    const d = a.createdAt?.slice(0, 10); if (!d) return;
+    answersPerDay[d] = (answersPerDay[d] || 0) + 1;
+    if (!activeUsers[d]) activeUsers[d] = new Set();
+    activeUsers[d].add(a.userId);
+  });
+  const activeCount = {};
+  Object.entries(activeUsers).forEach(([d, s]) => { activeCount[d] = s.size; });
+
+  const subjectPerf = {};
+  answers.forEach((a) => {
+    const q = questions.find((x) => x.id === a.questionId);
+    const p = q ? papers.find((x) => x.id === q.paperId) : null;
+    const sid = p?.subjectId || "?";
+    if (!subjectPerf[sid]) subjectPerf[sid] = { correct: 0, total: 0 };
+    subjectPerf[sid].total++; if (a.isCorrect) subjectPerf[sid].correct++;
+  });
+  const subjectPerformance = Object.entries(subjectPerf).map(([sid, v]) => {
+    const s = subs.find((x) => x.id === sid);
+    return { subject: s?.name || "?", correct: v.correct, total: v.total, accuracy: v.total ? Math.round((v.correct / v.total) * 100) : 0 };
+  }).sort((a, b) => b.total - a.total);
+
+  const usersByPlan = {};
+  users.forEach((u) => { const p = u.subscription || "free"; usersByPlan[p] = (usersByPlan[p] || 0) + 1; });
+
+  const avgQuizScore = quizResults.length ? Math.round(quizResults.reduce((s, r) => s + r.percentage, 0) / quizResults.length) : 0;
+  const quizTotal = quizResults.length;
+
+  const botUsage = {};
+  chatStats.forEach((c) => { botUsage[c.botName] = (botUsage[c.botName] || 0) + 1; });
+
+  const topStreaks = xp.filter((x) => (x.streak || 0) >= 3).sort((a, b) => b.streak - a.streak).slice(0, 5).map((x) => {
+    const u = users.find((u) => u.id === x.userId);
+    return { name: u?.name || "?", streak: x.streak || 0 };
+  });
+
+  const correct = answers.filter((a) => a.isCorrect).length;
+
+  res.json({
+    totals: { users: users.length, students: users.filter((u) => u.role === "student").length, answers: answers.length, correct, papers: papers.length, quizzesTaken: quizTotal, ratings: ratings.length, botMessages: chatStats.length },
+    signups: last14(signups),
+    answersPerDay: last14(answersPerDay),
+    activeUsers: last14(activeCount),
+    subjectPerformance,
+    usersByPlan,
+    avgQuizScore,
+    topStreaks,
+    botUsage,
+    topPapers: views.sort((a, b) => b.count - a.count).slice(0, 5).map((v) => {
+      const p = papers.find((x) => x.id === v.paperId);
+      const s = p ? subs.find((x) => x.id === p.subjectId) : null;
+      return { title: p?.title || "?", subject: s?.name, views: v.count };
+    }),
+  });
+});
+
 // ─── FULL DB DOWNLOAD ─────────────────────────────────────
 app.get("/api/admin/db", adminAuth, (req, res) => {
   const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith(".json"));
@@ -2785,7 +2867,7 @@ app.get("/api/papers/:id/offline", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json", "flags.json", "paper-views.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
