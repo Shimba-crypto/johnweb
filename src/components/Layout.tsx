@@ -13,6 +13,15 @@ export default function Layout() {
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); localStorage.setItem("theme", dark ? "dark" : "light"); }, [dark]);
 
+  // Real usage analytics: report the current page path once per route change
+  useEffect(() => {
+    if (location.pathname.startsWith("/api")) return;
+    const report = () => {
+      navigator.sendBeacon("/api/usage/page-view", JSON.stringify({ path: location.pathname }));
+    };
+    report();
+  }, [location.pathname]);
+
   useEffect(() => {
     const stored = localStorage.getItem("user");
     try { setUser(stored ? JSON.parse(stored) : null); } catch { setUser(null); }

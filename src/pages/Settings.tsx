@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import PushToggle from "../components/PushToggle";
 
 export default function Settings() {
   usePageTitle("Settings");
@@ -141,6 +142,11 @@ export default function Settings() {
             </div>
             <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Change Password</button>
           </form>
+          <div className="bg-white p-6 rounded-xl border shadow-sm">
+            <h3 className="font-semibold mb-1">🔔 Browser Notifications</h3>
+            <p className="text-sm text-gray-500 mb-3">Get notified in your browser when new papers are added, when your payment is confirmed, and about your results — even when you're not on the page.</p>
+            <PushToggle token={localStorage.getItem("token") || ""} />
+          </div>
           <div className="bg-white p-6 rounded-xl border shadow-sm">
             <h3 className="font-semibold mb-1">Active Sessions</h3>
             <p className="text-sm text-gray-500 mb-3">If you suspect your account was compromised, revoke all sessions immediately. You'll need to log in again.</p>

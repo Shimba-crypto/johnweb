@@ -905,6 +905,12 @@ function ToolsTab({ api, papers }: { api: any; papers: any[] }) {
     setMsg(`📣 Notification sent to ${r.sent} users`); setBTitle(""); setBMsg("");
   };
 
+  const pushSend = async () => {
+    if (!bTitle || !bMsg) return alert("Title and message required");
+    const r = await api("POST", "/api/admin/push", { title: bTitle, message: bMsg });
+    setMsg(r.error || `🔔 Push sent to ${r.sent}/${r.total} subscribed devices`);
+  };
+
   const saveAnnounce = async () => {
     await api("PUT", "/api/admin/settings", { announcement: announce });
     setMsg("Announcement saved");
@@ -940,6 +946,7 @@ function ToolsTab({ api, papers }: { api: any; papers: any[] }) {
           <input value={bTitle} onChange={(e) => setBTitle(e.target.value)} placeholder="Title" className="w-full p-2 border rounded-lg mb-2 text-sm" />
           <textarea value={bMsg} onChange={(e) => setBMsg(e.target.value)} placeholder="Message" className="w-full p-2 border rounded-lg mb-2 text-sm min-h-[70px]" />
           <button onClick={broadcast} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Send to all students</button>
+          <button onClick={pushSend} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700 ml-2">🔔 Push to devices</button>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow-sm">
@@ -1183,6 +1190,8 @@ function AnalyticsTab({ token }: { token: () => string | null }) {
         d.topPapers = Array.isArray(d.topPapers) ? d.topPapers : [];
         d.topStreaks = Array.isArray(d.topStreaks) ? d.topStreaks : [];
         d.usersByPlan = d.usersByPlan && typeof d.usersByPlan === "object" ? d.usersByPlan : {};
+        d.pageViewsPerDay = Array.isArray(d.pageViewsPerDay) ? d.pageViewsPerDay : [];
+        d.topPages = Array.isArray(d.topPages) ? d.topPages : [];
         d.totals = d.totals || {};
       }
       setData(d);
@@ -1233,6 +1242,15 @@ function AnalyticsTab({ token }: { token: () => string | null }) {
               <div key={i} className="flex justify-between text-sm"><span>{p.title} <span className="text-xs text-gray-400">({p.subject})</span></span><span className="font-semibold">{p.views}</span></div>
             ))}
           </div>
+          <h3 className="font-semibold mt-4 mb-2">Most visited pages</h3>
+          {data.topPages.length === 0 && <p className="text-sm text-gray-400">No page views yet.</p>}
+          <div className="space-y-1.5">{data.topPages.map((p: any, i: number) => <div key={i} className="flex justify-between text-sm"><span className="font-mono text-xs">{p.path}</span><span className="font-semibold">{p.count}</span></div>)}</div>
+          {data.pageViewsPerDay.length > 0 && (
+            <>
+              <h3 className="font-semibold mt-4 mb-2">Page views per day</h3>
+              <div className="space-y-1.5">{data.pageViewsPerDay.map((d: any, i: number) => <Bar key={i} label={d.date.slice(5)} value={d.count} max={Math.max(...data.pageViewsPerDay.map((x: any) => x.count), 1)} color="bg-teal-500" />)}</div>
+            </>
+          )}
           <h3 className="font-semibold mt-4 mb-2">Top study streaks</h3>
           {data.topStreaks.length === 0 && <p className="text-sm text-gray-400">No streaks yet.</p>}
           {data.topStreaks.map((s: any, i: number) => <div key={i} className="flex justify-between text-sm"><span>{s.name}</span><span className="font-semibold text-orange-600">🔥{s.streak}</span></div>)}

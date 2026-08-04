@@ -12,6 +12,31 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Push notifications: show a native browser notification and open the app on click
+self.addEventListener("push", (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch {}
+  const title = data.title || "JohnWeb";
+  const options = {
+    body: data.message || data.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: data.link || "/" },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if (new URL(c.url).pathname === url) return c.focus(); }
+      return clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;

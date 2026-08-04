@@ -1094,6 +1094,93 @@ function addNotification(userId, type, title, message, link) {
   writeJSON("notifications.json", notifs);
 }
 
+// ─── PUSH NOTIFICATIONS (Web Push / VAPID) ─────────────────
+import webpush from "web-push";
+
+let vapidKeys = null;
+function getVapidKeys() {
+  if (vapidKeys) return vapidKeys;
+  const settings = readJSON("settings.json");
+  if (settings.vapidPublicKey && settings.vapidPrivateKey) {
+    vapidKeys = { publicKey: settings.vapidPublicKey, privateKey: settings.vapidPrivateKey };
+  } else if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    vapidKeys = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+  } else {
+    vapidKeys = webpush.generateVAPIDKeys();
+    const updated = { ...settings, vapidPublicKey: vapidKeys.publicKey, vapidPrivateKey: vapidKeys.privateKey };
+    writeJSON("settings.json", updated);
+  }
+  webpush.setVapidDetails("mailto:support@johnweb.com", vapidKeys.publicKey, vapidKeys.privateKey);
+  return vapidKeys;
+}
+
+// Register / refresh a browser push subscription for the logged-in user
+app.post("/api/push/subscribe", auth, (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription?.endpoint) return res.status(400).json({ error: "subscription required" });
+  const subs = readJSON("push-subscriptions.json");
+  const clean = subs.filter((s) => s.userId !== req.user.id || s.endpoint !== subscription.endpoint);
+  clean.push({ userId: req.user.id, endpoint: subscription.endpoint, keys: subscription.keys || {}, createdAt: new Date().toISOString() });
+  writeJSON("push-subscriptions.json", clean.slice(-500));
+  getVapidKeys();
+  res.json({ ok: true, publicKey: vapidKeys.publicKey });
+});
+
+// Unsubscribe
+app.post("/api/push/unsubscribe", auth, (req, res) => {
+  const { endpoint } = req.body;
+  const subs = readJSON("push-subscriptions.json").filter((s) => !(s.userId === req.user.id && s.endpoint === endpoint));
+  writeJSON("push-subscriptions.json", subs);
+  res.json({ ok: true });
+});
+
+// Public VAPID public key for the service worker
+app.get("/api/push/key", (req, res) => {
+  const keys = getVapidKeys();
+  res.json({ publicKey: keys.publicKey });
+});
+
+// Send a push notification to a user (used by admin tools / features)
+async function sendPush(userId, title, body, link) {
+  const subs = readJSON("push-subscriptions.json").filter((s) => s.userId === userId);
+  if (!subs.length) return 0;
+  getVapidKeys();
+  const payload = JSON.stringify({ title, body, link: link || "/" });
+  let sent = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload);
+      sent++;
+    } catch (e) {
+      // 404/410 = subscription gone; remove it
+      if (e.statusCode === 404 || e.statusCode === 410) {
+        writeJSON("push-subscriptions.json", readJSON("push-subscriptions.json").filter((x) => x.endpoint !== s.endpoint));
+      }
+    }
+  }
+  return sent;
+}
+
+// Admin: broadcast a push notification to all (or a role) users
+app.post("/api/admin/push", adminAuth, async (req, res) => {
+  const { title, message, role } = req.body;
+  if (!title || !message) return res.status(400).json({ error: "title and message required" });
+  const users = readJSON("users.json").filter((u) => !role || u.role === role);
+  const subs = readJSON("push-subscriptions.json").filter((s) => users.some((u) => u.id === s.userId));
+  getVapidKeys();
+  const payload = JSON.stringify({ title, message, link: "/browse" });
+  let sent = 0;
+  for (const s of subs) {
+    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload); sent++; }
+    catch (e) {
+      if (e.statusCode === 404 || e.statusCode === 410) {
+        writeJSON("push-subscriptions.json", readJSON("push-subscriptions.json").filter((x) => x.endpoint !== s.endpoint));
+      }
+    }
+  }
+  res.json({ sent, total: subs.length });
+});
+
 app.get("/api/notifications", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
@@ -2211,8 +2298,8 @@ app.get("/api/certificate", auth, (req, res) => {
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>JohnWeb Certificate</title>
 <style>
-  body { font-family: Georgia, serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f8fafc; margin: 0; }
-  .cert { width: 800px; border: 8px double #15803d; padding: 40px; text-align: center; background: white; }
+  body { font-family: Georgia, serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background: #f8fafc; margin: 0; padding: 20px; }
+  .cert { width: 800px; max-width: 100%; border: 8px double #15803d; padding: 40px; text-align: center; background: white; }
   .cert h1 { color: #15803d; font-size: 28px; margin: 10px 0; }
   .cert .line { border-top: 2px solid #e5e7eb; margin: 20px 0; }
   .cert .name { font-size: 32px; font-weight: bold; color: #1e293b; }
@@ -2221,7 +2308,15 @@ app.get("/api/certificate", auth, (req, res) => {
   .cert .footer { display: flex; justify-content: space-between; margin-top: 30px; font-size: 14px; color: #64748b; }
   .cert .qr { margin-top: 20px; }
   .cert .qr a { color: #15803d; font-size: 13px; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .toolbar button { background: #15803d; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  .toolbar button:hover { background: #166534; }
+  @media print { body { background: white; padding: 0; } .toolbar { display: none; } .cert { border: 4px solid #15803d; box-shadow: none; } }
 </style></head><body>
+<div class="toolbar">
+  <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button onclick="window.close()">Close</button>
+</div>
 <div class="cert">
   <div style="font-size:20px;color:#d97706;font-weight:bold;">JOHNWEB</div>
   <h1>Certificate of Achievement</h1>
@@ -3044,6 +3139,12 @@ app.get("/api/admin/analytics", adminAuth, (req, res) => {
   const views = readJSON("paper-views.json");
   const ratings = readJSON("ratings.json");
 
+  const pageViewsAll = readJSON("page-views.json");
+  const pageViewsByDay = {};
+  pageViewsAll.forEach((v) => { pageViewsByDay[v.date] = (pageViewsByDay[v.date] || 0) + v.count; });
+  const topPages = Object.entries(pageViewsAll.reduce((acc, v) => { acc[v.path] = (acc[v.path] || 0) + v.count; return acc; }, {}))
+    .sort((a, b) => b[1] - a[1]).slice(0, 10).map(([path, count]) => ({ path, count }));
+
   const last14 = (map) => Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).slice(-14).map(([date, count]) => ({ date, count }));
 
   const signups = {};
@@ -3093,6 +3194,8 @@ app.get("/api/admin/analytics", adminAuth, (req, res) => {
     signups: last14(signups),
     answersPerDay: last14(answersPerDay),
     activeUsers: last14(activeCount),
+    pageViewsPerDay: last14(pageViewsByDay),
+    topPages,
     subjectPerformance,
     usersByPlan,
     avgQuizScore,
@@ -3513,8 +3616,120 @@ app.get("/api/meta", (req, res) => {
   });
 });
 
+// ─── USSD MINI-APP ────────────────────────────────────────
+// Web simulator of a *xxx# USSD menu (dial code pattern). The same menu
+// logic is gateway-agnostic: swap the HTTP handler for an Africa's Talking
+// webhook (sessionId / phoneNumber / text) to go live on real shortcodes.
+// Session state lives in-memory keyed by a session id (string).
+const ussdSessions = new Map();
+
+function ussdMenu(session, input) {
+  const step = session.step || "main";
+  const last = (session.inputs || []).join(",");
+  if (step === "main") {
+    if (input === "1") { session.step = "papers"; return { text: "CON Browse Papers:\n1. Mathematics\n2. English\n3. Science\n4. Social Studies\n0. Back", end: false }; }
+    if (input === "2") { session.step = "results"; return { text: "CON Check My Progress:\n1. Best Subject\n2. Weakest Subject\n3. Answers Today\n0. Back", end: false }; }
+    if (input === "3") { session.step = "redeem"; return { text: "CON Redeem Access Code\nEnter your code:" , end: false }; }
+    return { text: "CON Welcome to JohnWeb ECZ\n1. Browse Papers\n2. My Progress\n3. Redeem Code\n0. Exit", end: false };
+  }
+  if (step === "papers") {
+    if (input === "0") { session.step = "main"; return ussdMenu(session, ""); }
+    const map = { 1: "Mathematics", 2: "English Language", 3: "Science", 4: "Social Studies" };
+    const subject = map[input];
+    if (!subject) return { text: "CON Invalid choice.\n1-4 to choose\n0. Back", end: false };
+    const subjectsList = readJSON("subjects.json");
+    const papers = readJSON("papers.json").filter((p) => p.subjectId === subjectsList.find((s) => s.name === subject)?.id).slice(0, 3);
+    if (!papers.length) return { text: "CON No papers yet. Try later.\n0. Back", end: false };
+    session.paperList = papers.map((p) => p.title);
+    session.step = "paperlist";
+    return { text: "CON " + subject + " papers:\n" + papers.map((p, i) => `${i + 1}. ${p.title}`).join("\n") + "\n0. Back", end: false };
+  }
+  if (step === "paperlist") {
+    if (input === "0") { session.step = "papers"; return ussdMenu(session, ""); }
+    const idx = parseInt(input) - 1;
+    const title = session.paperList?.[idx];
+    if (!title) return { text: "CON Invalid choice.\n0. Back", end: false };
+    session.step = "main";
+    return { text: `END ${title}\nOpen the app (johnweb-qncu.onrender.com) to practise.\nFull papers need internet; USSD is for quick info.` };
+  }
+  if (step === "results") {
+    if (input === "0") { session.step = "main"; return ussdMenu(session, ""); }
+    const answers = readJSON("answers.json").filter((a) => a.userId === session.userId);
+    const q = readJSON("questions.json");
+    const papers = readJSON("papers.json");
+    const subsList = readJSON("subjects.json");
+    const correct = answers.filter((a) => a.isCorrect).length;
+    if (input === "3") return { text: `END Answers today: ${answers.length} total, ${correct} correct (${answers.length ? Math.round(correct / answers.length * 100) : 0}%)` };
+    const perf = {};
+    answers.forEach((a) => {
+      const qq = q.find((x) => x.id === a.questionId);
+      const p = qq ? papers.find((x) => x.id === qq.paperId) : null;
+      const sid = p?.subjectId || "?";
+      if (!perf[sid]) perf[sid] = { correct: 0, total: 0 };
+      perf[sid].total++; if (a.isCorrect) perf[sid].correct++;
+    });
+    const ranked = Object.entries(perf).map(([sid, v]) => ({ s: subsList.find((x) => x.id === sid)?.name || "?", pct: v.total ? Math.round(v.correct / v.total * 100) : 0 })).sort((a, b) => a.pct - b.pct);
+    if (!ranked.length) return { text: "END No practice yet. Solve a paper to see your progress!" };
+    const pick = input === "1" ? ranked[ranked.length - 1] : ranked[0];
+    return { text: `END ${input === "1" ? "Best" : "Weakest"} subject: ${pick.s} at ${pick.pct}%` };
+  }
+  if (step === "redeem") {
+    const codes = readJSON("codes.json");
+    const code = codes.find((c) => c.code?.toUpperCase() === String(input).trim().toUpperCase());
+    if (!code) return { text: "CON Invalid code. Try again or 0 to exit.", end: false };
+    if (code.status === "used") return { text: "END This code has already been used." };
+    session.step = "main";
+    return { text: "END Code accepted! Open the app and log in — your plan is now active." };
+  }
+  session.step = "main";
+  return ussdMenu(session, "");
+}
+
+app.post("/api/ussd", (req, res) => {
+  // Accept both Africa's Talking style ({sessionId, phoneNumber, text}) and
+  // the web simulator ({session, text}).
+  const sessionId = String(req.body.sessionId || req.body.session || "web");
+  let text = String(req.body.text || req.body.input || "");
+  const phoneNumber = String(req.body.phoneNumber || req.body.phone || "");
+  // AT style: leading "*123#" in the very first ping is the dial code, strip it.
+  if (text.startsWith("*")) text = text.replace(/^\*\d+#/, "");
+  let session = ussdSessions.get(sessionId);
+  if (!session) { session = { step: "main", inputs: [], userId: null }; ussdSessions.set(sessionId, session); }
+  const out = ussdMenu(session, text.trim());
+  session.inputs.push(text.trim());
+  if (out.end) ussdSessions.delete(sessionId);
+  // AT responds in plain text; the simulator also accepts JSON.
+  res.setHeader("Content-Type", "text/plain");
+  res.send(out.text);
+});
+
+// JSON variant for the web simulator
+app.post("/api/ussd/json", (req, res) => {
+  const sessionId = String(req.body.session || "web");
+  let text = String(req.body.input || "");
+  let session = ussdSessions.get(sessionId);
+  if (!session) { session = { step: "main", inputs: [], userId: null }; ussdSessions.set(sessionId, session); }
+  const out = ussdMenu(session, text.trim());
+  session.inputs.push(text.trim());
+  if (out.end) ussdSessions.delete(sessionId);
+  res.json({ ...out, session: sessionId });
+});
+
+// Page-view tracking for real usage analytics
+app.post("/api/usage/page-view", (req, res) => {
+  const { path } = req.body;
+  const safe = String(path || "/").slice(0, 200);
+  const day = new Date().toISOString().slice(0, 10);
+  const views = readJSON("page-views.json");
+  const existing = views.find((v) => v.date === day && v.path === safe);
+  if (existing) existing.count++;
+  else views.push({ date: day, path: safe, count: 1 });
+  writeJSON("page-views.json", views.slice(-5000));
+  res.json({ ok: true });
+});
+
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
