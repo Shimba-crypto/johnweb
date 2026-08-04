@@ -2639,7 +2639,7 @@ app.get("/api/invites/:token", (req, res) => {
 });
 
 app.post("/api/invites/:token/register", (req, res) => {
-  const { name, password } = req.body;
+  const { name, password, email: customEmail } = req.body;
   if (!name || !password) return res.status(400).json({ error: "Name and password required" });
   const pwErr = validatePassword(password);
   if (pwErr) return res.status(400).json({ error: pwErr });
@@ -2648,10 +2648,19 @@ app.post("/api/invites/:token/register", (req, res) => {
   if (!invite) return res.status(404).json({ error: "Invite not found or expired" });
   if (invite.usedCount >= invite.maxUses) return res.status(400).json({ error: "This invite has reached its limit" });
   const users = readJSON("users.json");
-  const slug = (name + (invite.school || "jws")).toLowerCase().replace(/[^a-z0-9]+/g, ".");
-  let email = `${slug}@invite.johnweb.com`;
-  let n = 1;
-  while (users.find((u) => u.email === email)) email = `${slug}.${n++}@invite.johnweb.com`;
+  // Allow a real email if provided; otherwise generate a slug-based invite email.
+  let email;
+  if (customEmail) {
+    const em = String(customEmail).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return res.status(400).json({ error: "Enter a valid email address" });
+    email = em;
+  } else {
+    const slug = (name + (invite.school || "jws")).toLowerCase().replace(/[^a-z0-9]+/g, ".");
+    email = `${slug}@invite.johnweb.com`;
+    let n = 1;
+    while (users.find((u) => u.email === email)) email = `${slug}.${n++}@invite.johnweb.com`;
+  }
+  if (users.find((u) => u.email === email)) return res.status(400).json({ error: "An account with this email already exists. Please log in instead." });
   // For paid invites: account is created but PENDING (plan locked until admin confirms payment)
   const requiresPayment = invite.price > 0 && invite.paymentStatus !== "paid";
   const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: invite.role, tokenVersion: 1, school: invite.school || "", teacherName: invite.teacherName || "", teacherId: invite.teacherId || "", subscription: requiresPayment ? "pending" : (invite.plan || undefined), inviteId: invite.id, planLocked: requiresPayment, createdAt: new Date().toISOString() };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
 
@@ -8,6 +8,7 @@ export default function InviteJoin() {
   const [invite, setInvite] = useState<any>(null);
   const [notFound, setNotFound] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -17,6 +18,8 @@ export default function InviteJoin() {
   const [payError, setPayError] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [redirecting, setRedirecting] = useState(false);
+  const regRef = useRef<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     fetch(`/api/invites/${token}`)
@@ -38,44 +41,58 @@ export default function InviteJoin() {
         localStorage.setItem("refreshToken", loginData.refreshToken || "");
         localStorage.setItem("user", JSON.stringify(loginData.user));
         setStep("done");
+        setRedirecting(true);
         setTimeout(() => { window.location.href = dest; }, 1200);
         return true;
       }
     } catch {}
-    setStep("done"); // fallback: show login button
     return false;
+  };
+
+  const finish = (email: string, pw: string, dest: string) => {
+    setStep("done");
+    setRedirecting(false);
+    setRegEmail(email);
+    setTimeout(() => { window.location.href = "/login"; }, 1200);
   };
 
   // Poll payment status while waiting for admin confirmation
   useEffect(() => {
     if (step !== "waiting") return;
-    const t = setInterval(() => {
-      fetch(`/api/invites/${token}/status`).then((r) => r.json()).then((d) => {
+    let stopped = false;
+    const t = setInterval(async () => {
+      try {
+        const d = await (await fetch(`/api/invites/${token}/status`)).json();
         setPaymentStatus(d.paymentStatus);
-        if (d.confirmed) {
+        if (d.confirmed && regRef.current) {
+          stopped = true;
           clearInterval(t);
-          autoLogin(regEmail, password, "/teacher");
+          const ok = await autoLogin(regRef.current.email, regRef.current.password, "/teacher");
+          if (!ok) finish(regRef.current.email, regRef.current.password, "/login");
         }
-      }).catch(() => {});
+      } catch {}
     }, 5000);
-    return () => clearInterval(t);
-  }, [step, token, regEmail, password]);
+    return () => { stopped = true; clearInterval(t); };
+  }, [step, token]);
 
   const register = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (password !== confirm) return setError("Passwords do not match.");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter a valid email address.");
     const res = await fetch(`/api/invites/${token}/register`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password }),
+      body: JSON.stringify({ name, password, email: email.trim() || undefined }),
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error || "Registration failed"); return; }
     setRegEmail(data.email);
+    regRef.current = { email: data.email, password };
     if (data.requiresPayment) { setStep("phone"); }
     else {
       // free invite: auto-login now
-      await autoLogin(data.email, password, "/browse");
+      const ok = await autoLogin(data.email, password, "/browse");
+      if (!ok) finish(data.email, password, "/login");
     }
   };
 
@@ -129,6 +146,11 @@ export default function InviteJoin() {
           <div>
             <label className="block text-sm font-medium mb-1">Your Name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 border rounded-lg" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Email (optional)</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full p-2 border rounded-lg" />
+            <p className="text-xs text-gray-400 mt-1">Leave blank to use an invite email. A real email is easier to log in with later.</p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Create a Password</label>
@@ -206,7 +228,11 @@ export default function InviteJoin() {
           <div className="text-4xl mb-2">✅</div>
           <h3 className="font-bold text-lg mb-1">You're all set!</h3>
           <p className="text-sm mb-4">Your account is active{regEmail ? ` — ${regEmail}` : ""}.</p>
-          <Link to="/login" className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Login now</Link>
+          {redirecting ? (
+            <Link to="/login" className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Login now</Link>
+          ) : (
+            <Link to="/login" className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Log in to continue</Link>
+          )}
           <p className="text-xs text-gray-500 mt-2">You'll be redirected automatically in a moment.</p>
         </div>
       )}
