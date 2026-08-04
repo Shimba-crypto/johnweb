@@ -15,6 +15,7 @@ export default function Settings() {
   const [siteDesc, setSiteDesc] = useState("");
   const [adminSecret, setAdminSecret] = useState("");
   const [secretSaved, setSecretSaved] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState("");
   const [omniKeyInput, setOmniKeyInput] = useState("");
   const [omniMsg, setOmniMsg] = useState("");
   const [msg, setMsg] = useState("");
@@ -58,7 +59,7 @@ export default function Settings() {
 
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await api("PUT", "/api/admin/settings", { deepseekApiKey: deepseekKey, openrouterApiKey: openrouterKey, siteName, siteDescription: siteDesc });
+    const res = await api("PUT", "/api/admin/settings", { deepseekApiKey: deepseekKey, openrouterApiKey: openrouterKey, siteName, siteDescription: siteDesc, googleClientId });
     if (res.error) setMsg(res.error);
     else setMsg("Settings saved!");
   };
@@ -92,7 +93,7 @@ export default function Settings() {
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "super_admin") {
       api("GET", "/api/admin/settings").then((s) => {
-        if (!s.error) { setDeepseekKey(s.deepseekApiKey || ""); setOpenrouterKey(s.openrouterApiKey || ""); setSiteName(s.siteName || ""); setSiteDesc(s.siteDescription || ""); }
+        if (!s.error) { setDeepseekKey(s.deepseekApiKey || ""); setOpenrouterKey(s.openrouterApiKey || ""); setSiteName(s.siteName || ""); setSiteDesc(s.siteDescription || ""); setGoogleClientId(s.googleClientId || ""); }
       });
     }
   }, [user]);
@@ -185,6 +186,13 @@ export default function Settings() {
           <div>
             <label className="block text-sm font-medium mb-1">OpenRouter API Key (fallback)</label>
             <input type="password" value={openrouterKey} onChange={(e) => setOpenrouterKey(e.target.value)} placeholder="sk-or-..." className="w-full p-2 border rounded-lg font-mono text-sm" />
+          </div>
+          <hr />
+          <h3 className="font-semibold text-lg">Google Sign-In</h3>
+          <p className="text-sm text-gray-500">Paste your Google OAuth <strong>Client ID</strong> (from Google Cloud Console → Credentials → OAuth client ID, Web application). Once set, a real "Continue with Google" button appears on the login page.</p>
+          <div>
+            <label className="block text-sm font-medium mb-1">Google Client ID</label>
+            <input type="text" value={googleClientId} onChange={(e) => setGoogleClientId(e.target.value)} placeholder="1234567890-xxxx.apps.googleusercontent.com" className="w-full p-2 border rounded-lg font-mono text-sm" />
           </div>
           <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Save Settings</button>
         </form>
