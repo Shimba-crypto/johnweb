@@ -230,9 +230,10 @@ app.post("/api/auth/register", (req, res) => {
   const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, tokenVersion: 1, createdAt: new Date().toISOString() };
   users.push(user);
   // Referral bonus: friends who join via your link get a free week of Student Plus (k50)
+  // Only regular student accounts can be referrers (admins/staff/bots excluded)
   if (ref) {
     const referrer = users.find((u) => u.id === ref);
-    if (referrer && referrer.id !== user.id && referrer.role !== "bot" && referrer.role !== "mod_bot") {
+    if (referrer && referrer.id !== user.id && referrer.role === "student") {
       const referrals = readJSON("referrals.json");
       referrals.push({ id: uuidv4(), referrerId: referrer.id, referredId: user.id, createdAt: new Date().toISOString() });
       writeJSON("referrals.json", referrals);
@@ -488,7 +489,7 @@ app.get("/api/users/:id/public", (req, res) => {
   const xp = readJSON("xp.json").find((x) => x.userId === user.id);
   const correct = answers.filter((a) => a.isCorrect).length;
   res.json({
-    id: user.id, name: user.name, role: user.role,
+    id: user.id, name: user.name, role: user.role, avatar: user.avatar || null,
     createdAt: user.createdAt, totalAnswers: answers.length, correct,
     percentage: answers.length ? Math.round((correct / answers.length) * 100) : 0,
     avgRating: ratings.length ? Math.round((ratings.reduce((s, r) => s + r.score, 0) / ratings.length) * 10) / 10 : 0,
