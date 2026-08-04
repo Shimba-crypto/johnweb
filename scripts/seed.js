@@ -767,8 +767,8 @@ subjects.forEach((sub) => {
         papers[papers.length - 1].source = "real";
         // Per-paper deterministic shuffle so no two papers mirror each other.
         const pool = seededShuffle(realQuestions, `${sub.id}|${grade}|${year}|${p}`);
-        // Rotate the starting point per paper so overlapping content is spread out.
-        const offset = ((p - 1) * 7) % pool.length;
+        // Rotate the starting point per paper+year so overlapping content is spread out.
+        const offset = (((p - 1) * 7) + (year * 13)) % pool.length;
         for (let q = 1; q <= numQ; q++) {
           // cycle through the shuffled pool so no placeholder text is used,
           // but each paper gets a unique ordering
