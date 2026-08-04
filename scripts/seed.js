@@ -488,6 +488,7 @@ const defaultAdmins = [
     email: "shimbacc@hotmail.com",
     password: "$2a$10$AcY0s/U3dvcZgih4lt8huuUPe8btK9xYvcZQ1ojDY7pnHAVLQc/YO",
     role: "super_admin",
+    subscription: "k200",
     createdAt: "2024-01-01T00:00:00.000Z",
   },
   {
@@ -496,6 +497,7 @@ const defaultAdmins = [
     email: "silungwejohn24@gmail.com",
     password: "$2a$10$lz5Eq7bJxnBS3sBQvsqINOcVZ2dHJYDMVhvxqaB2cMtXv8vqy3Dce",
     role: "super_admin",
+    subscription: "k200",
     createdAt: "2026-08-02T12:35:00.000Z",
   },
 ];

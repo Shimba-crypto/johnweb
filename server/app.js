@@ -2546,6 +2546,11 @@ export function migrateData() {
       delete u.apiKey;
       changed = true;
     }
+    // All super admins / omni super are K200 (top tier) by default
+    if ((u.role === "super_admin" || u.role === "omni_super") && u.subscription !== "k200") {
+      u.subscription = "k200";
+      changed = true;
+    }
   });
   if (changed) writeJSON("users.json", users);
 }
