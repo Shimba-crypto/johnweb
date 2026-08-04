@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
 
-type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "analytics" | "users";
+type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "codes" | "analytics" | "users";
 
 export default function Admin() {
   usePageTitle("Admin Panel");
@@ -166,6 +166,7 @@ export default function Admin() {
     { key: "logs", label: "Logs" },
     { key: "payments", label: "Payments" },
     { key: "invites", label: "Invites" },
+    { key: "codes", label: "Codes" },
     { key: "analytics", label: "Analytics" },
     { key: "users", label: "Users" },
   ];
@@ -562,6 +563,7 @@ export default function Admin() {
       )}
 
       {tab === "invites" && <InvitesTab api={api} />}
+      {tab === "codes" && <CodesTab api={api} />}
 
       {tab === "analytics" && <AnalyticsTab token={token} />}
 
@@ -626,6 +628,18 @@ export default function Admin() {
                         {user.role === "super_admin" && <option value="bot">Bot</option>}
                         {user.role === "super_admin" && <option value="mod_bot">MOD Bot</option>}
                       </select>
+                    )}
+                    {["admin", "super_admin", "omni_super"].includes(user.role) && (
+                      u.banned ? (
+                        <button onClick={async () => { await api("POST", `/api/admin/users/${u.id}/unban`); fetchUsers(); }} className="text-green-600 text-xs hover:underline ml-1">Unban</button>
+                      ) : (
+                        <button onClick={async () => {
+                          const reason = prompt(`Ban ${u.name}? Enter a reason:`);
+                          if (reason === null) return;
+                          const r = await api("POST", `/api/admin/users/${u.id}/ban`, { reason: reason || "Violation of terms" });
+                          if (r.error) alert(r.error); else fetchUsers();
+                        }} className="text-red-600 text-xs hover:underline ml-1">Ban</button>
+                      )
                     )}
                   </div>
                 </div>
@@ -776,8 +790,81 @@ function InvitesTab({ api }: { api: any }) {
   );
 }
 
-function Bar({ label, value, max, color = "bg-green-500" }: { label: string; value: number; max: number; color?: string }) {
+function CodesTab({ api }: { api: any }) {
+  const [codes, setCodes] = useState<any[]>([]);
+  const [plan, setPlan] = useState("k20");
+  const [count, setCount] = useState(5);
+  const [copied, setCopied] = useState<string>("");
+
+  const load = () => api("GET", "/api/admin/codes").then(setCodes).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const copy = async (code: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = code; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      }
+      setCopied(code); setTimeout(() => setCopied(""), 1500);
+    } catch { prompt("Copy this access code:", code); }
+  };
+
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await api("POST", "/api/admin/codes", { plan, count });
+    if (result.codes) { load(); alert(`✅ ${result.codes.length} ${plan} codes created. Use Copy on each to share.`); }
+    else alert(result.error || "Error");
+  };
+
+  const unused = codes.filter((c) => c.status === "unused").length;
+
   return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Access Codes {codes.length > 0 && <span className="text-sm text-gray-500 font-normal">({unused} unused)</span>}</h2>
+
+      <form onSubmit={create} className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Plan</label>
+          <select value={plan} onChange={(e) => setPlan(e.target.value)} className="p-2 border rounded-lg">
+            {["k10", "k20", "k30", "k50", "k100"].map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">How many</label>
+          <input type="number" min={1} max={100} value={count} onChange={(e) => setCount(parseInt(e.target.value) || 1)} className="p-2 border rounded-lg w-20" />
+        </div>
+        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">🎫 Generate Codes</button>
+      </form>
+
+      {codes.length === 0 ? (
+        <p className="text-gray-500 text-center py-6">No codes yet. Generate some above.</p>
+      ) : (
+        <div className="space-y-2">
+          {codes.map((c) => (
+            <div key={c.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">{c.plan}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${c.status === "unused" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{c.status}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-1">
+                  <input readOnly value={c.code} onFocus={(e) => e.target.select()} className="text-sm font-mono text-gray-700 bg-gray-50 border rounded px-2 py-1 min-w-0 flex-1" />
+                  <button onClick={() => copy(c.code)} className="shrink-0 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+                    {copied === c.code ? "✅ Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Bar({ label, value, max, color = "bg-green-500" }: { label: string; value: number; max: number; color?: string }) {  return (
     <div>
       <div className="flex justify-between text-xs mb-0.5"><span>{label}</span><span className="text-gray-500">{value}</span></div>
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full`} style={{ width: `${max ? Math.min(100, (value / max) * 100) : 0}%` }} /></div>
