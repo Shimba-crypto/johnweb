@@ -62,21 +62,7 @@ export default function Login() {
       </div>
       <button
         onClick={() => {
-          const gEmail = prompt("Enter your Google email to sign in:");
-          if (!gEmail || !gEmail.includes("@")) return;
-          const gName = gEmail.split("@")[0].replace(/[._]/g, " ");
-          fetch("/api/auth/google", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: gEmail, name: gName }),
-          }).then((r) => r.json()).then((data) => {
-            if (data.error) setError(data.error);
-            else {
-              localStorage.setItem("token", data.token);
-              localStorage.setItem("refreshToken", data.refreshToken || "");
-              localStorage.setItem("user", JSON.stringify(data.user));
-              navigate("/browse");
-            }
-          });
+          setError("Google sign-in is temporarily unavailable. Please log in with your email and password.");
         }}
         className="w-full bg-white border border-gray-300 py-2 rounded-lg hover:bg-gray-50 font-medium text-gray-700 flex items-center justify-center gap-2"
       >

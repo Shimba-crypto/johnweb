@@ -655,21 +655,18 @@ app.get("/api/users", adminAuth, (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, createdAt: u.createdAt })));
 });
 
-app.put("/api/admin/users/:id/role", (req, res) => {
-  req.user = getUser(req);
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+app.put("/api/admin/users/:id/role", adminAuth, (req, res) => {
   const { role } = req.body;
   const validRoles = ["student", "investor", "teacher", "dev", "admin", "super_admin", "omni_super", "bot", "mod_bot"];
   if (!validRoles.includes(role)) return res.status(400).json({ error: `Invalid role. Valid: ${validRoles.join(", ")}` });
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "Not found" });
-  if (users[idx].role === "super_admin" && req.user.role !== "super_admin") return res.status(403).json({ error: "Only super_admin can modify super_admin" });
+  if (users[idx].role === "super_admin" && !["super_admin", "omni_super"].includes(req.user.role)) return res.status(403).json({ error: "Only super_admin can modify super_admin" });
   if (req.user.role === "admin" && !["student", "investor", "teacher"].includes(role)) return res.status(403).json({ error: "Admin can only assign: student, investor, teacher" });
-  if (req.user.role === "super_admin") {} // can assign any role
-  else if (!["admin", "super_admin"].includes(req.user.role)) return res.status(403).json({ error: "Insufficient permissions" });
   users[idx].role = role;
   writeJSON("users.json", users);
+  adminLog("role_changed", req.user.id, req.user.name, `${users[idx].email} → ${role}`);
   res.json({ id: users[idx].id, name: users[idx].name, email: users[idx].email, role: users[idx].role });
 });
 
@@ -724,7 +721,7 @@ app.delete("/api/admin/users/:id", adminAuth, (req, res) => {
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "Not found" });
-  if (users[idx].role === "super_admin" && users[idx].id !== req.user.id) return res.status(403).json({ error: "Cannot delete another super_admin" });
+  if (users[idx].role === "super_admin" && !["super_admin", "omni_super"].includes(req.user.role) && users[idx].id !== req.user.id) return res.status(403).json({ error: "Cannot delete another super_admin" });
   if (users[idx].id === req.user.id) return res.status(400).json({ error: "You cannot delete your own account" });
   const [removed] = users.splice(idx, 1);
   writeJSON("users.json", users);
@@ -3251,9 +3248,66 @@ const v1Aliases = ["/subjects", "/papers", "/papers/:id", "/questions", "/quizze
 v1Aliases.forEach((p) => { app.use(`/api/v1${p}`, (req, res, next) => { req.url = p === "/subjects" ? "/subjects" : req.originalUrl.replace(/^\/api\/v1/, ""); next(); }); });
 
 // ─── #60 GOOGLE SIGN-IN ────────────────────────────────────
+// SECURITY: requires a real Google ID token (verified against Google's
+// public keys) OR the GOOGLE_BYPASS_KEY env/secret as a development escape
+// hatch. The frontend must send a genuine idToken from Google Sign-In.
+let googleCertsCache = { keys: [], fetchedAt: 0 };
+
+function base64UrlDecode(str) {
+  const b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+  return Buffer.from(b64 + pad, "base64");
+}
+
+async function verifyGoogleIdToken(idToken) {
+  if (!idToken || typeof idToken !== "string") return null;
+  const crypto = require("crypto");
+  // Cache Google's public keys for 6 hours
+  if (Date.now() - googleCertsCache.fetchedAt > 6 * 60 * 60 * 1000) {
+    try {
+      const r = await fetch("https://www.googleapis.com/oauth2/v3/certs");
+      const d = await r.json();
+      googleCertsCache = { keys: Array.isArray(d.keys) ? d.keys : [], fetchedAt: Date.now() };
+    } catch { return null; }
+  }
+  const parts = idToken.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const header = JSON.parse(base64UrlDecode(parts[0]).toString());
+    const payload = JSON.parse(base64UrlDecode(parts[1]).toString());
+    if (!payload.email || payload.iat > Math.floor(Date.now() / 1000) + 300) return null;
+    const cert = googleCertsCache.keys.find((k) => k.kid === header.kid);
+    if (!cert || !cert.n || !cert.e) return null;
+    const keyObj = crypto.createPublicKey({
+      key: { kty: "RSA", n: cert.n, e: cert.e },
+      format: "jwk",
+    });
+    const signature = base64UrlDecode(parts[2]);
+    const data = Buffer.from(parts[0] + "." + parts[1]);
+    const alg = header.alg === "RS256" ? "sha256" : header.alg === "RS384" ? "sha384" : header.alg === "RS512" ? "sha512" : null;
+    if (!alg) return null;
+    const ok = crypto.verify(alg, data, keyObj, signature);
+    if (!ok) return null;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (clientId && String(payload.aud) !== clientId) return null;
+    return { email: payload.email, name: payload.name || null, sub: payload.sub || null };
+  } catch { return null; }
+}
+
 app.post("/api/auth/google", async (req, res) => {
-  const { idToken, name, email } = req.body;
-  if (!email) return res.status(400).json({ error: "email required" });
+  const { idToken, email, name } = req.body;
+  // Dev/emergency bypass — requires a secret configured on the server.
+  const bypassKey = process.env.GOOGLE_BYPASS_KEY || "";
+  if (bypassKey && req.body.bypassKey === bypassKey && email) {
+    return handleGoogleEmail(email, name || email.split("@")[0], res);
+  }
+  // Real path: verify the Google ID token. NEVER trust a raw email.
+  const verified = await verifyGoogleIdToken(idToken);
+  if (!verified) return res.status(401).json({ error: "Invalid Google sign-in. Please use a real Google account." });
+  handleGoogleEmail(verified.email, verified.name || verified.email.split("@")[0], res);
+});
+
+function handleGoogleEmail(email, name, res) {
   const users = readJSON("users.json");
   let user = users.find((u) => u.email === email);
   if (!user) {
@@ -3264,7 +3318,7 @@ app.post("/api/auth/google", async (req, res) => {
   }
   const tokens = issueTokens(user);
   res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
-});
+}
 
 // ─── #61 AVATAR UPLOAD ─────────────────────────────────────
 app.post("/api/avatar", auth, upload.single("file"), (req, res) => {
