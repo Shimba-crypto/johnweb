@@ -25,6 +25,27 @@ export default function InviteJoin() {
       .catch(() => setNotFound(true));
   }, [token]);
 
+  // Shared auto-login: stores tokens and redirects. Returns true on success.
+  const autoLogin = async (email: string, pw: string, dest: string) => {
+    try {
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pw }),
+      });
+      const loginData = await loginRes.json();
+      if (loginRes.ok && loginData.token) {
+        localStorage.setItem("token", loginData.token);
+        localStorage.setItem("refreshToken", loginData.refreshToken || "");
+        localStorage.setItem("user", JSON.stringify(loginData.user));
+        setStep("done");
+        setTimeout(() => { window.location.href = dest; }, 1200);
+        return true;
+      }
+    } catch {}
+    setStep("done"); // fallback: show login button
+    return false;
+  };
+
   // Poll payment status while waiting for admin confirmation
   useEffect(() => {
     if (step !== "waiting") return;
@@ -33,19 +54,7 @@ export default function InviteJoin() {
         setPaymentStatus(d.paymentStatus);
         if (d.confirmed) {
           clearInterval(t);
-          // auto-login with the credentials they registered
-          fetch("/api/auth/login", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: regEmail, password }),
-          }).then((r) => r.json()).then((loginData) => {
-            if (loginData.token) {
-              localStorage.setItem("token", loginData.token);
-              localStorage.setItem("refreshToken", loginData.refreshToken || "");
-              localStorage.setItem("user", JSON.stringify(loginData.user));
-              setStep("done");
-              setTimeout(() => { window.location.href = "/teacher"; }, 1500);
-            }
-          });
+          autoLogin(regEmail, password, "/teacher");
         }
       }).catch(() => {});
     }, 5000);
@@ -66,18 +75,7 @@ export default function InviteJoin() {
     if (data.requiresPayment) { setStep("phone"); }
     else {
       // free invite: auto-login now
-      const loginRes = await fetch("/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email, password }),
-      });
-      const loginData = await loginRes.json();
-      if (loginRes.ok) {
-        localStorage.setItem("token", loginData.token);
-        localStorage.setItem("refreshToken", loginData.refreshToken || "");
-        localStorage.setItem("user", JSON.stringify(loginData.user));
-        setStep("done");
-        setTimeout(() => { window.location.href = "/browse"; }, 1200);
-      } else setStep("done");
+      await autoLogin(data.email, password, "/browse");
     }
   };
 
@@ -207,7 +205,9 @@ export default function InviteJoin() {
         <div className="bg-green-50 border border-green-200 text-green-700 p-8 rounded-xl text-center">
           <div className="text-4xl mb-2">✅</div>
           <h3 className="font-bold text-lg mb-1">You're all set!</h3>
-          <p className="text-sm">Your account is active. Redirecting you now...</p>
+          <p className="text-sm mb-4">Your account is active{regEmail ? ` — ${regEmail}` : ""}.</p>
+          <Link to="/login" className="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Login now</Link>
+          <p className="text-xs text-gray-500 mt-2">You'll be redirected automatically in a moment.</p>
         </div>
       )}
     </div>
