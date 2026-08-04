@@ -675,7 +675,7 @@ function InvitesTab({ api }: { api: any }) {
   const [maxUses, setMaxUses] = useState(10);
   const [copied, setCopied] = useState<string>("");
 
-  const load = () => api("GET", "/api/admin/invites").then(setInvites).catch(() => {});
+  const load = () => api("GET", "/api/admin/invites").then((d) => setInvites(Array.isArray(d) ? d : [])).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const create = async (e: React.FormEvent) => {
@@ -810,7 +810,7 @@ function CodesTab({ api }: { api: any }) {
   const [count, setCount] = useState(5);
   const [copied, setCopied] = useState<string>("");
 
-  const load = () => api("GET", "/api/admin/codes").then(setCodes).catch(() => {});
+  const load = () => api("GET", "/api/admin/codes").then((d) => setCodes(Array.isArray(d) ? d : [])).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const copy = async (code: string) => {
@@ -1173,9 +1173,22 @@ function Bar({ label, value, max, color = "bg-green-500" }: { label: string; val
 function AnalyticsTab({ token }: { token: () => string | null }) {
   const [data, setData] = useState<any>(null);
   useEffect(() => {
-    fetch("/api/admin/analytics", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then(setData);
+    fetch("/api/admin/analytics", { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).then((d) => {
+      if (d && !d.error) {
+        // defensive: ensure all arrays exist so .map never crashes
+        d.signups = Array.isArray(d.signups) ? d.signups : [];
+        d.answersPerDay = Array.isArray(d.answersPerDay) ? d.answersPerDay : [];
+        d.activeUsers = Array.isArray(d.activeUsers) ? d.activeUsers : [];
+        d.subjectPerformance = Array.isArray(d.subjectPerformance) ? d.subjectPerformance : [];
+        d.topPapers = Array.isArray(d.topPapers) ? d.topPapers : [];
+        d.topStreaks = Array.isArray(d.topStreaks) ? d.topStreaks : [];
+        d.usersByPlan = d.usersByPlan && typeof d.usersByPlan === "object" ? d.usersByPlan : {};
+        d.totals = d.totals || {};
+      }
+      setData(d);
+    });
   }, []);
-  if (!data) return <p className="text-gray-500 text-center py-8">Loading analytics...</p>;
+  if (!data || data.error) return <p className="text-gray-500 text-center py-8">Loading analytics...</p>;
 
   const maxSignup = Math.max(...data.signups.map((x: any) => x.count), 1);
   const maxAnswers = Math.max(...data.answersPerDay.map((x: any) => x.count), 1);
