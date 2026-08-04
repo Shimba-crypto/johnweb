@@ -21,6 +21,22 @@ export default function Profile() {
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [progress, setProgress] = useState<any>(null);
+
+  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return alert("Image must be under 2MB");
+    const t = localStorage.getItem("token");
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/avatar", { method: "POST", headers: { Authorization: `Bearer ${t}` }, body: fd });
+    const data = await res.json();
+    if (data.url) {
+      const updated = { ...user, avatar: data.url };
+      localStorage.setItem("user", JSON.stringify(updated));
+      setUser(updated);
+    } else alert(data.error || "Upload failed");
+  };
   const [subjects, setSubjects] = useState<any[]>([]);
   const token = localStorage.getItem("token");
 
@@ -42,9 +58,20 @@ export default function Profile() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="bg-white p-6 rounded-xl border shadow-sm mb-8">
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{user.name}</h1>
-            <p className="text-gray-500">{user.email}</p>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-green-600 text-white flex items-center justify-center text-2xl font-bold overflow-hidden">
+                {user.avatar ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" /> : user.name?.[0]?.toUpperCase()}
+              </div>
+              <label className="absolute bottom-0 right-0 bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center cursor-pointer text-xs hover:bg-green-700" title="Change photo">
+                📷
+                <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+              </label>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{user.name}</h1>
+              <p className="text-gray-500">{user.email}</p>
+            </div>
           </div>
           <Link to={`/user/${user.id}`} className="text-xs text-green-600 hover:underline">View public profile →</Link>
         </div>

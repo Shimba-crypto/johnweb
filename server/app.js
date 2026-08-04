@@ -369,6 +369,7 @@ app.get("/api/papers/:id", (req, res) => {
   const paper = papers.find((p) => p.id === req.params.id);
   if (!paper) return res.status(404).json({ error: "Not found" });
   const questions = readJSON("questions.json").filter((q) => q.paperId === paper.id);
+  try { trackPaperView(paper.id); } catch {}
   res.json({ ...paper, questions });
 });
 
@@ -1297,15 +1298,23 @@ app.get("/api/follow/followers", auth, (req, res) => {
 
 // ─── NEWS SYSTEM ──────────────────────────────────────────
 app.get("/api/news", (req, res) => {
+  const now = Date.now();
+  const news = readJSON("news.json")
+    .filter((n) => !n.scheduledAt || new Date(n.scheduledAt).getTime() <= now)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json(news);
+});
+
+app.get("/api/admin/news", adminAuth, (req, res) => {
   const news = readJSON("news.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json(news);
 });
 
 app.post("/api/admin/news", adminAuth, (req, res) => {
-  const { title, content, category } = req.body;
+  const { title, content, category, scheduledAt } = req.body;
   if (!title || !content) return res.status(400).json({ error: "Title and content required" });
   const news = readJSON("news.json");
-  const item = { id: uuidv4(), title, content, category: category || "general", author: req.user.name, createdAt: new Date().toISOString() };
+  const item = { id: uuidv4(), title, content, category: category || "general", author: req.user.name, scheduledAt: scheduledAt || null, createdAt: new Date().toISOString() };
   news.push(item);
   writeJSON("news.json", news);
   res.json(item);
@@ -1738,24 +1747,6 @@ app.use((err, req, res, next) => {
 app.use("/uploads", express.static(uploadDir, { setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff") }));
 
 // ─── PASSWORD RESET ───────────────────────────────────────
-app.post("/api/auth/forgot-password", (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email required" });
-  const users = readJSON("users.json");
-  const user = users.find((u) => u.email === email);
-  const generic = { message: "If that email is registered, a reset link has been sent." };
-  if (!user) return res.json(generic);
-  const resetToken = crypto.randomBytes(24).toString("hex");
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
-  const resets = readJSON("password-resets.json");
-  // Invalidate any previous unused tokens for this user
-  resets.forEach((r) => { if (r.userId === user.id && !r.used) r.used = true; });
-  resets.push({ id: uuidv4(), userId: user.id, token: resetToken, used: false, expiresAt, createdAt: new Date().toISOString() });
-  writeJSON("password-resets.json", resets);
-  // Token is sent by email only — never returned to the caller
-  sendEmail(user.email, "JohnWeb Password Reset", `<p>Use this reset token on the JohnWeb site:</p><p><b>${resetToken}</b></p><p>It expires in 30 minutes.</p>`);
-  res.json(generic);
-});
 
 app.post("/api/auth/reset-password", (req, res) => {
   const { token, newPassword } = req.body;
@@ -2640,8 +2631,161 @@ app.get("/api/admin/db", adminAuth, (req, res) => {
   res.send(JSON.stringify(db, null, 2));
 });
 
+// ─── #4 PASSWORD RESET COOLDOWN ─────────────────────────────
+const resetCooldown = new Map();
+app.post("/api/auth/forgot-password", (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Email required" });
+  const key = String(email).toLowerCase();
+  const now = Date.now();
+  // 15-minute cooldown per email to prevent reset-token spam
+  const last = resetCooldown.get(key);
+  if (last && now - last < 15 * 60 * 1000) return res.status(429).json({ message: "A reset link was already sent. Check your email (or wait 15 minutes)." });
+  resetCooldown.set(key, now);
+  const users = readJSON("users.json");
+  const user = users.find((u) => u.email === email);
+  const generic = { message: "If that email is registered, a reset link has been sent." };
+  if (!user) return res.json(generic);
+  const resetToken = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(now + 30 * 60 * 1000).toISOString(); // 30 min
+  const resets = readJSON("password-resets.json");
+  resets.forEach((r) => { if (r.userId === user.id && !r.used) r.used = true; });
+  resets.push({ id: uuidv4(), userId: user.id, token: resetToken, used: false, expiresAt, createdAt: new Date().toISOString() });
+  writeJSON("password-resets.json", resets);
+  logSecurity("password_reset_request", user.id, user.email, "Reset token issued (30 min, 15 min cooldown)", req);
+  // Token is sent by email only — NEVER returned to the caller
+  sendEmail(user.email, "JohnWeb Password Reset", `<p>Use this reset token on the JohnWeb site:</p><p><b>${resetToken}</b></p><p>It expires in 30 minutes.</p>`);
+  res.json(generic);
+});
+
+// ─── #6 FLAG / MODERATION ───────────────────────────────────
+app.post("/api/flag", auth, (req, res) => {
+  const { targetType, targetId, reason } = req.body;
+  if (!targetType || !targetId) return res.status(400).json({ error: "targetType and targetId required" });
+  const flags = readJSON("flags.json");
+  const existing = flags.find((f) => f.targetType === targetType && f.targetId === targetId && f.userId === req.user.id);
+  if (existing) return res.json({ message: "Already flagged" });
+  flags.push({ id: uuidv4(), targetType, targetId, reason: reason || "Inappropriate content", userId: req.user.id, userName: req.user.name, status: "open", createdAt: new Date().toISOString() });
+  writeJSON("flags.json", flags);
+  const admins = readJSON("users.json").filter((u) => ["super_admin", "omni_super", "admin"].includes(u.role));
+  admins.forEach((a) => addNotification(a.id, "content_flagged", "Content Flagged", `${req.user.name} flagged ${targetType} content`, "/admin"));
+  res.json({ message: "Flagged for review" });
+});
+
+app.get("/api/admin/flags", adminAuth, (req, res) => {
+  const flags = readJSON("flags.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json(flags);
+});
+
+app.post("/api/admin/flags/:id/resolve", adminAuth, (req, res) => {
+  const flags = readJSON("flags.json");
+  const f = flags.find((x) => x.id === req.params.id);
+  if (!f) return res.status(404).json({ error: "Flag not found" });
+  f.status = "resolved"; f.resolvedBy = req.user.id; f.resolvedAt = new Date().toISOString();
+  writeJSON("flags.json", flags);
+  res.json({ ok: true });
+});
+
+// ─── #30 SEARCH QUESTIONS BY TOPIC ──────────────────────────
+app.get("/api/search-questions", (req, res) => {
+  const { q } = req.query;
+  if (!q || q.length < 2) return res.json([]);
+  const query = q.toLowerCase();
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  const results = questions.filter((x) => (x.text || "").toLowerCase().includes(query) || (x.modelAnswer || "").toLowerCase().includes(query));
+  res.json(results.slice(0, 30).map((x) => {
+    const p = papers.find((pp) => pp.id === x.paperId);
+    const s = p ? subs.find((ss) => ss.id === p.subjectId) : null;
+    return { id: x.id, text: x.text, options: x.options || [], modelAnswer: x.modelAnswer, paperId: x.paperId, paper: p?.title, subject: s?.name, grade: p?.grade, marks: x.marks };
+  }));
+});
+
+// ─── #36 PAPER VIEW TRACKING ───────────────────────────────
+function trackPaperView(paperId) {
+  const views = readJSON("paper-views.json");
+  const rec = views.find((v) => v.paperId === paperId);
+  if (rec) rec.count++;
+  else views.push({ paperId, count: 1 });
+  writeJSON("paper-views.json", views);
+}
+
+app.get("/api/admin/popular-papers", adminAuth, (req, res) => {
+  const views = readJSON("paper-views.json").sort((a, b) => b.count - a.count).slice(0, 20);
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  res.json(views.map((v) => {
+    const p = papers.find((x) => x.id === v.paperId);
+    const s = p ? subs.find((x) => x.id === p.subjectId) : null;
+    return { paperId: v.paperId, title: p?.title, subject: s?.name, grade: p?.grade, views: v.count };
+  }));
+});
+
+// ─── #33 BULK EDIT PAPER QUESTIONS ─────────────────────────
+app.put("/api/admin/papers/:id/questions", adminAuth, (req, res) => {
+  const { questions } = req.body;
+  if (!questions || !Array.isArray(questions)) return res.status(400).json({ error: "questions array required" });
+  const all = readJSON("questions.json");
+  const others = all.filter((q) => q.paperId !== req.params.id);
+  questions.forEach((q, i) => {
+    others.push({ id: q.id || uuidv4(), paperId: req.params.id, questionNumber: i + 1, text: q.text, marks: parseInt(q.marks) || 2, modelAnswer: q.modelAnswer || "", type: q.options && q.options.length ? "mcq" : "open", options: q.options || [] });
+  });
+  writeJSON("questions.json", others);
+  adminLog("bulk_edit", req.user.id, req.user.name, `${questions.length} questions updated for ${req.params.id}`);
+  res.json({ updated: questions.length });
+});
+
+// ─── #40 API VERSIONING ────────────────────────────────────
+app.use("/api/v1", (req, res, next) => {
+  req.url = req.originalUrl.replace(/^\/api\/v1/, "");
+  next();
+});
+// v1 aliases route to the same public handlers
+const v1Aliases = ["/subjects", "/papers", "/papers/:id", "/questions", "/quizzes", "/leaderboard", "/stats", "/timetable", "/news"];
+v1Aliases.forEach((p) => { app.use(`/api/v1${p}`, (req, res, next) => { req.url = p === "/subjects" ? "/subjects" : req.originalUrl.replace(/^\/api\/v1/, ""); next(); }); });
+
+// ─── #60 GOOGLE SIGN-IN ────────────────────────────────────
+app.post("/api/auth/google", async (req, res) => {
+  const { idToken, name, email } = req.body;
+  if (!email) return res.status(400).json({ error: "email required" });
+  const users = readJSON("users.json");
+  let user = users.find((u) => u.email === email);
+  if (!user) {
+    const pw = Math.random().toString(36).slice(2) + "G!" + Date.now();
+    user = { id: uuidv4(), name: name || email.split("@")[0], email, password: bcrypt.hashSync(pw, 10), role: "student", tokenVersion: 1, google: true, createdAt: new Date().toISOString() };
+    users.push(user);
+    writeJSON("users.json", users);
+  }
+  const tokens = issueTokens(user);
+  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
+// ─── #61 AVATAR UPLOAD ─────────────────────────────────────
+app.post("/api/avatar", auth, upload.single("file"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  const url = `/uploads/${req.file.filename}`;
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.user.id);
+  if (idx >= 0) { users[idx].avatar = url; writeJSON("users.json", users); }
+  res.json({ url });
+});
+
+// ─── #42 OFFLINE PAPER DOWNLOAD ────────────────────────────
+app.get("/api/papers/:id/offline", (req, res) => {
+  const papers = readJSON("papers.json");
+  const paper = papers.find((p) => p.id === req.params.id);
+  if (!paper) return res.status(404).json({ error: "Not found" });
+  const subs = readJSON("subjects.json");
+  const questions = readJSON("questions.json").filter((q) => q.paperId === paper.id).map((q) => ({ questionNumber: q.questionNumber, text: q.text, options: q.options || [], marks: q.marks }));
+  const data = { title: paper.title, subject: subs.find((s) => s.id === paper.subjectId)?.name, grade: paper.grade, year: paper.year, questions };
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", `attachment; filename=${paper.id}-offline.json`);
+  res.send(JSON.stringify(data, null, 2));
+});
+
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json", "flags.json", "paper-views.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

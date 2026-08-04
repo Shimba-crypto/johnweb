@@ -26,11 +26,23 @@ export default function Browse() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [selectedType, setSelectedType] = useState("");
   const [search, setSearch] = useState("");
+  const [topicResults, setTopicResults] = useState<any[]>([]);
+  const [topicLoading, setTopicLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
   }, []);
+
+  useEffect(() => {
+    if (!search.trim() || search.trim().length < 2) { setTopicResults([]); return; }
+    setTopicLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/search-questions?q=${encodeURIComponent(search)}`).then((r) => r.json()).then((d) => { setTopicResults(Array.isArray(d) ? d.slice(0, 8) : []); }).finally(() => setTopicLoading(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const allPapers: Paper[] = subjects.flatMap((s) =>
     (s.papers || []).map((p) => ({ ...p, subjectName: s.name }))
@@ -40,6 +52,7 @@ export default function Browse() {
     if (selectedSubject && p.subjectId !== selectedSubject) return false;
     if (selectedGrade && p.grade !== selectedGrade) return false;
     if (selectedYear && String(p.year) !== selectedYear) return false;
+    if (selectedType && p.examType !== selectedType) return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.subjectName?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -85,7 +98,24 @@ export default function Browse() {
             <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
+        <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="px-4 py-2 border rounded-lg">
+          <option value="">All Exam Types</option>
+          <option value="external">External</option>
+          <option value="internal">Internal</option>
+        </select>
       </div>
+
+      {topicResults.length > 0 && (
+        <div className="bg-white rounded-xl border shadow-sm mb-6">
+          <div className="p-3 border-b text-sm font-medium text-gray-500">Questions matching "{search}"</div>
+          {topicResults.map((q) => (
+            <Link key={q.id} to={`/paper/${q.paperId}`} className="block p-3 border-b last:border-b-0 hover:bg-gray-50">
+              <div className="text-sm text-gray-800">{q.text}</div>
+              <div className="text-xs text-gray-400 mt-1">{q.subject} · Grade {q.grade} · {q.paper}</div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((paper) => (

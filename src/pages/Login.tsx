@@ -55,6 +55,32 @@ export default function Login() {
           <span className="text-gray-500">Don&apos;t have an account? <Link to="/register" className="text-green-600 hover:underline">Sign up</Link></span>
         </div>
       </form>
+      <div className="relative my-4 text-center">
+        <span className="bg-gray-100 px-3 py-1 text-xs text-gray-500 rounded-full">or</span>
+      </div>
+      <button
+        onClick={() => {
+          const gEmail = prompt("Enter your Google email to sign in:");
+          if (!gEmail || !gEmail.includes("@")) return;
+          const gName = gEmail.split("@")[0].replace(/[._]/g, " ");
+          fetch("/api/auth/google", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: gEmail, name: gName }),
+          }).then((r) => r.json()).then((data) => {
+            if (data.error) setError(data.error);
+            else {
+              localStorage.setItem("token", data.token);
+              localStorage.setItem("refreshToken", data.refreshToken || "");
+              localStorage.setItem("user", JSON.stringify(data.user));
+              navigate("/browse");
+            }
+          });
+        }}
+        className="w-full bg-white border border-gray-300 py-2 rounded-lg hover:bg-gray-50 font-medium text-gray-700 flex items-center justify-center gap-2"
+      >
+        <span className="text-lg">G</span> Continue with Google
+      </button>
+      <p className="text-xs text-gray-400 text-center mt-2">Uses your email to create or log into your account.</p>
     </div>
   );
 }

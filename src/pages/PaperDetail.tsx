@@ -43,6 +43,14 @@ export default function PaperDetail() {
 
   const downloadPDF = () => window.print();
 
+  const downloadOffline = () => {
+    fetch(`/api/papers/${id}/offline`).then((r) => r.blob()).then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `${id}-offline.json`; a.click();
+      URL.revokeObjectURL(url);
+    });
+  };
+
   useEffect(() => {
     fetch(`/api/papers/${id}`).then((r) => r.json()).then(setPaper);
     setToken(localStorage.getItem("token"));
@@ -214,10 +222,15 @@ export default function PaperDetail() {
             <h1 className="text-3xl font-bold">{paper.title}</h1>
             <p className="text-gray-500">{paper.year} | {paper.description}</p>
           </div>
-          <button onClick={downloadPDF} className="hidden sm:flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            Download PDF
-          </button>
+          <div className="flex gap-2">
+            <button onClick={downloadOffline} className="hidden sm:flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm">
+              📥 Offline
+            </button>
+            <button onClick={downloadPDF} className="hidden sm:flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Download PDF
+            </button>
+          </div>
         </div>
       </div>
 
