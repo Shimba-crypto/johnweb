@@ -441,6 +441,10 @@ subjects.forEach((sub) => {
     const relevantYears = years.filter((y) => y >= 2022);
     relevantYears.forEach((year) => {
       for (let p = 1; p <= numPapers; p++) {
+        const realQuestions = REAL_QUESTIONS[sub.name]?.[grade];
+        const hasReal = realQuestions && realQuestions.length > 0;
+        // Skip papers that would have no real questions (no placeholder content)
+        if (!hasReal) { paperCounter++; continue; }
         const paperId = `paper-${String(paperCounter).padStart(3, "0")}`;
         paperCounter++;
         const examType = "external";
@@ -456,23 +460,21 @@ subjects.forEach((sub) => {
           createdAt: `${year}-06-01`,
         });
         const numQ = 10;
-        const realQuestions = REAL_QUESTIONS[sub.name]?.[grade];
-        const hasReal = realQuestions && realQuestions.length > 0;
-        papers[papers.length - 1].source = hasReal ? "real" : "generated";
+        papers[papers.length - 1].source = "real";
         for (let q = 1; q <= numQ; q++) {
           // cycle through available real questions so no placeholder text is used
-          const idx = hasReal ? ((p - 1) * numQ + (q - 1)) % realQuestions.length : 0;
-          const real = hasReal ? realQuestions[idx] : undefined;
+          const idx = ((p - 1) * numQ + (q - 1)) % realQuestions.length;
+          const real = realQuestions[idx];
           const questionType = real?.options ? "mcq" : "open";
           questions.push({
             id: `q-${String(questionCounter).padStart(3, "0")}`,
             paperId,
             questionNumber: q,
-            text: real?.text || `ECZ ${sub.name} ${grade} question ${q}`,
-            marks: real?.marks || (q === 1 ? 4 : q === 2 ? 3 : q === 3 ? 5 : q === 4 ? 2 : 6),
-            modelAnswer: real?.answer || "",
+            text: real.text,
+            marks: real.marks,
+            modelAnswer: real.answer,
             type: questionType,
-            options: real?.options || [],
+            options: real.options || [],
           });
           questionCounter++;
         }
