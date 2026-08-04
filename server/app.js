@@ -316,6 +316,10 @@ app.post("/api/auth/login", (req, res) => {
     }
     return res.status(401).json({ error: "Invalid credentials" });
   }
+  if (user.banned) {
+    addNotification(user.id, "banned", "Account Banned", `Your account has been banned${user.banReason ? `: ${user.banReason}` : "."}`, "/");
+    return res.status(403).json({ error: `Your account has been banned${user.banReason ? `: ${user.banReason}` : "."}`, banned: true, banReason: user.banReason });
+  }
   if (emailKey) loginAttempts.delete(emailKey);
   const tokens = issueTokens(user);
   res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
@@ -507,7 +511,9 @@ function getUser(req) {
   const payload = verifyAuth(auth.slice(7));
   if (!payload) return null;
   const users = readJSON("users.json");
-  return users.find((u) => u.id === payload.userId) || null;
+  const u = users.find((x) => x.id === payload.userId);
+  if (!u || u.banned) return null; // banned users have no access
+  return u;
 }
 
 function auth(req, res, next) {
@@ -655,6 +661,38 @@ app.put("/api/admin/users/:id/role", (req, res) => {
   users[idx].role = role;
   writeJSON("users.json", users);
   res.json({ id: users[idx].id, name: users[idx].name, email: users[idx].email, role: users[idx].role });
+});
+
+// Ban / unban users
+app.post("/api/admin/users/:id/ban", adminAuth, (req, res) => {
+  const { reason } = req.body;
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  if (users[idx].role === "omni_super") return res.status(403).json({ error: "Cannot ban an omni_super" });
+  if (users[idx].id === req.user.id) return res.status(400).json({ error: "You can't ban yourself" });
+  users[idx].banned = true;
+  users[idx].banReason = reason || "Violation of terms";
+  users[idx].bannedAt = new Date().toISOString();
+  users[idx].bannedBy = req.user.id;
+  writeJSON("users.json", users);
+  adminLog("user_banned", req.user.id, req.user.name, `${users[idx].email}: ${users[idx].banReason}`);
+  addNotification(users[idx].id, "banned", "Account Banned", `Your account has been banned: ${users[idx].banReason}`, "/");
+  res.json({ banned: true, reason: users[idx].banReason });
+});
+
+app.post("/api/admin/users/:id/unban", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  users[idx].banned = false;
+  users[idx].banReason = undefined;
+  users[idx].bannedAt = undefined;
+  users[idx].bannedBy = undefined;
+  writeJSON("users.json", users);
+  adminLog("user_unbanned", req.user.id, req.user.name, `${users[idx].email}`);
+  addNotification(users[idx].id, "unbanned", "Account Unbanned", "Your account has been unbanned. You can log in again.", "/login");
+  res.json({ banned: false });
 });
 
 // Admin set password

@@ -600,7 +600,10 @@ export default function Admin() {
               };
               return (
                 <div key={u.id} className="grid grid-cols-6 gap-4 p-4 border-b last:border-b-0 items-center hover:bg-gray-50">
-                  <div className="col-span-2 font-medium">{u.name}</div>
+                  <div className="col-span-2 font-medium">
+                    {u.name}
+                    {u.banned && <span className="ml-2 text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">BANNED</span>}
+                  </div>
                   <div className="col-span-2 text-gray-500 text-sm truncate">{u.email}</div>
                   <div>
                     <span className={`text-xs px-2 py-1 rounded ${roleColors[u.role] || "bg-gray-100 text-gray-600"}`}>{roleLabels[u.role] || u.role}</span>
