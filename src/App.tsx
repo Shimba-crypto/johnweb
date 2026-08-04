@@ -47,6 +47,9 @@ import BattleRoom from "./pages/BattleRoom";
 import RedeemCode from "./pages/RedeemCode";
 import InviteJoin from "./pages/InviteJoin";
 import EditPaper from "./pages/EditPaper";
+import ViewPaper from "./pages/ViewPaper";
+import ViewQA from "./pages/ViewQA";
+import ViewResult from "./pages/ViewResult";
 
 export default function App() {
   return (
@@ -95,6 +98,9 @@ export default function App() {
         <Route path="/quiz-analytics" element={<QuizAnalytics />} />
         <Route path="/admin/bulk-import" element={<BulkImport />} />
         <Route path="/admin/edit-pp" element={<EditPaper />} />
+        <Route path="/view/unknown/paper/:id" element={<ViewPaper />} />
+        <Route path="/view/unknown/q-and-a" element={<ViewQA />} />
+        <Route path="/view/unknown/result/:id" element={<ViewResult />} />
         <Route path="/join/primarysteps" element={<JoinSchool />} />
         <Route path="/battles" element={<Battles />} />
         <Route path="/battle/:id" element={<BattleRoom />} />

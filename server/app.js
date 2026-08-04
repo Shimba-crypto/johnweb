@@ -1599,6 +1599,32 @@ app.get("/api/quiz-results/:quizId", (req, res) => {
   res.json(results.sort((a, b) => b.percentage - a.percentage));
 });
 
+// Public: single quiz result by id (for shareable /view/unknown/result links)
+app.get("/api/result/:id", (req, res) => {
+  const result = readJSON("quiz-results.json").find((r) => r.id === req.params.id);
+  if (!result) return res.status(404).json({ error: "Result not found" });
+  const users = readJSON("users.json");
+  const u = users.find((x) => x.id === result.userId);
+  res.json({ ...result, userName: u?.name || result.userName });
+});
+
+// Public: Q&A browse (questions with model answers)
+app.get("/api/qa", (req, res) => {
+  const { q, subject } = req.query;
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  let list = questions;
+  if (q && q.length >= 2) { const query = q.toLowerCase(); list = list.filter((x) => (x.text || "").toLowerCase().includes(query) || (x.modelAnswer || "").toLowerCase().includes(query)); }
+  if (subject) { const paperIds = papers.filter((p) => p.subjectId === subject).map((p) => p.id); list = list.filter((x) => paperIds.includes(x.paperId)); }
+  const enriched = list.sort(() => Math.random() - 0.5).slice(0, 20).map((x) => {
+    const p = papers.find((pp) => pp.id === x.paperId);
+    const s = p ? subs.find((ss) => ss.id === p.subjectId) : null;
+    return { id: x.id, text: x.text, options: x.options || [], modelAnswer: x.modelAnswer, subject: s?.name, paper: p?.title, grade: p?.grade, marks: x.marks, questionNumber: x.questionNumber };
+  });
+  res.json(enriched);
+});
+
 app.get("/api/my-quiz-results", auth, (req, res) => {
   const results = readJSON("quiz-results.json").filter((r) => r.userId === req.user.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json(results);
