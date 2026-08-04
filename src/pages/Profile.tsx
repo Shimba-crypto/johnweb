@@ -192,6 +192,16 @@ export default function Profile() {
         >
           🎓 Download Certificate
         </a>
+        <a
+          href={`/api/progress-card/${user.id}`}
+          onClick={(e) => {
+            e.preventDefault();
+            window.open(`/api/progress-card/${user.id}`, "_blank");
+          }}
+          className="inline-flex items-center gap-2 bg-orange-50 text-orange-700 border border-orange-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-100"
+        >
+          📊 My Progress Card
+        </a>
       </div>
 
       <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-8">

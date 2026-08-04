@@ -633,6 +633,9 @@ export default function Admin() {
                       </select>
                     )}
                     {["admin", "super_admin", "omni_super"].includes(user.role) && (
+                      <a href={`/api/admin/report/${u.id}`} onClick={(e) => { e.preventDefault(); window.open(`/api/admin/report/${u.id}`, "_blank"); }} className="text-green-600 text-xs hover:underline ml-1">Report</a>
+                    )}
+                    {["admin", "super_admin", "omni_super"].includes(user.role) && (
                       u.banned ? (
                         <button onClick={async () => { await api("POST", `/api/admin/users/${u.id}/unban`); fetchUsers(); }} className="text-green-600 text-xs hover:underline ml-1">Unban</button>
                       ) : (
@@ -931,6 +934,11 @@ function AnalyticsTab({ token }: { token: () => string | null }) {
           <h3 className="font-semibold mt-4 mb-2">Bot usage</h3>
           {Object.entries(data.botUsage).map(([name, count]: any, i: number) => <div key={i} className="flex justify-between text-sm"><span>{name}</span><span>{count} msgs</span></div>)}
           <div className="mt-4 flex justify-between text-sm"><span>Average quiz score</span><span className="font-semibold">{data.avgQuizScore}%</span></div>
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="text-sm font-semibold text-green-800">📈 Predicted class pass rate</div>
+            <div className="text-2xl font-bold text-green-700">{data.predictedPassRate}%</div>
+            <div className="text-xs text-gray-500 mt-1">{data.readyStudents} students likely ready (≥50% accuracy, 5+ answers)</div>
+          </div>
         </div>
       </div>
     </div>

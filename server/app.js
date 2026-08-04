@@ -2859,6 +2859,162 @@ ${Object.entries(groups).map(([subject, list]) => `
   res.send(html);
 });
 
+// ─── #20 SIMILAR QUESTIONS ──────────────────────────────────
+app.get("/api/questions/:id/similar", (req, res) => {
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  const target = questions.find((q) => q.id === req.params.id);
+  if (!target) return res.status(404).json({ error: "Question not found" });
+  const targetPaper = papers.find((p) => p.id === target.paperId);
+  const targetSubj = targetPaper?.subjectId;
+  const targetWords = (target.text || "").toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+  const scored = questions
+    .filter((q) => q.id !== target.id && q.paperId !== target.paperId)
+    .map((q) => {
+      const p = papers.find((x) => x.id === q.paperId);
+      const s = p ? subs.find((x) => x.id === p.subjectId) : null;
+      let score = 0;
+      if (p?.subjectId === targetSubj) score += 3;
+      const words = (q.text || "").toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+      score += words.filter((w) => targetWords.includes(w)).length;
+      return { id: q.id, text: q.text, options: q.options || [], modelAnswer: q.modelAnswer, subject: s?.name, paper: p?.title, grade: p?.grade, paperId: q.paperId, marks: q.marks, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+  res.json(scored);
+});
+
+// ─── #5 WRONG-ANSWER FLASHCARDS ─────────────────────────────
+app.get("/api/flashcards", auth, (req, res) => {
+  const answers = readJSON("answers.json").filter((a) => a.userId === req.user.id && a.isCorrect === false);
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const seen = new Set();
+  const cards = [];
+  answers.forEach((a) => {
+    if (seen.has(a.questionId)) return;
+    seen.add(a.questionId);
+    const q = questions.find((x) => x.id === a.questionId);
+    if (!q) return;
+    const p = papers.find((x) => x.id === q.paperId);
+    cards.push({ id: q.id, text: q.text, options: q.options || [], modelAnswer: q.modelAnswer, paper: p?.title, marks: q.marks, paperId: q.paperId });
+  });
+  res.json(cards.slice(0, 50));
+});
+
+// ─── #13 FEATURED STUDENT OF THE WEEK ───────────────────────
+app.get("/api/featured-student", (req, res) => {
+  const users = readJSON("users.json");
+  const answers = readJSON("answers.json");
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekAnswers = answers.filter((a) => new Date(a.createdAt).getTime() >= weekAgo);
+  const scores = {};
+  weekAnswers.forEach((a) => {
+    if (!scores[a.userId]) scores[a.userId] = { correct: 0, total: 0 };
+    scores[a.userId].total++; if (a.isCorrect) scores[a.userId].correct++;
+  });
+  const ranked = Object.entries(scores)
+    .map(([userId, s]) => {
+      const u = users.find((x) => x.id === userId);
+      if (!u || u.role !== "student" || u.banned) return null;
+      return { id: userId, name: u.name, avatar: u.avatar || null, correct: s.correct, total: s.total, pct: s.total ? Math.round((s.correct / s.total) * 100) : 0 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.pct - a.pct || b.total - a.total)[0];
+  res.json(ranked || null);
+});
+
+// ─── #22 PROGRESS CARD ──────────────────────────────────────
+app.get("/api/progress-card/:userId", (req, res) => {
+  const users = readJSON("users.json");
+  const user = users.find((u) => u.id === req.params.userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const answers = readJSON("answers.json").filter((a) => a.userId === user.id);
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  const correct = answers.filter((a) => a.isCorrect).length;
+  const pct = answers.length ? Math.round((correct / answers.length) * 100) : 0;
+  const xp = readJSON("xp.json").find((x) => x.userId === user.id);
+  const level = xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1;
+  const bySubject = {};
+  answers.forEach((a) => {
+    const q = questions.find((x) => x.id === a.questionId);
+    const p = q ? papers.find((x) => x.id === q.paperId) : null;
+    const sid = p?.subjectId;
+    if (!sid) return;
+    if (!bySubject[sid]) bySubject[sid] = { correct: 0, total: 0 };
+    bySubject[sid].total++; if (a.isCorrect) bySubject[sid].correct++;
+  });
+  const subjBars = Object.entries(bySubject).map(([sid, v]) => {
+    const s = subs.find((x) => x.id === sid);
+    return `<div style="display:flex;justify-content:space-between;font-size:12px;color:#475569;margin:4px 0"><span>${s?.name || "?"}</span><span>${v.total ? Math.round((v.correct / v.total) * 100) : 0}%</span></div><div style="height:6px;background:#e2e8f0;border-radius:3px;margin-bottom:8px"><div style="height:6px;background:#16a34a;border-radius:3px;width:${v.total ? Math.round((v.correct / v.total) * 100) : 0}%"></div></div>`;
+  }).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>JohnWeb Progress</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#f8fafc">
+<div style="max-width:400px;margin:20px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1)">
+<div style="background:linear-gradient(135deg,#16a34a,#15803d);padding:24px;text-align:center;color:white">
+<div style="font-size:48px">${user.avatar ? `<img src="${user.avatar}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid white">` : "🎓"}</div>
+<div style="font-size:20px;font-weight:bold;margin-top:8px">${user.name}</div>
+<div style="font-size:12px;opacity:0.9">JohnWeb Progress</div>
+</div>
+<div style="padding:20px;text-align:center">
+<div style="display:flex;justify-content:space-around">
+<div><div style="font-size:24px;font-weight:bold;color:#16a34a">${answers.length}</div><div style="font-size:11px;color:#94a3b8">Answers</div></div>
+<div><div style="font-size:24px;font-weight:bold;color:#16a34a">${pct}%</div><div style="font-size:11px;color:#94a3b8">Accuracy</div></div>
+<div><div style="font-size:24px;font-weight:bold;color:#16a34a">${correct}</div><div style="font-size:11px;color:#94a3b8">Correct</div></div>
+<div><div style="font-size:24px;font-weight:bold;color:#16a34a">Lvl ${level}</div><div style="font-size:11px;color:#94a3b8">${xp?.xp || 0} XP</div></div>
+</div>
+</div>
+<div style="padding:16px 20px 24px;border-top:1px solid #e2e8f0">
+<div style="font-size:13px;font-weight:bold;color:#1e293b;margin-bottom:8px">Subject accuracy</div>${subjBars || '<div style="font-size:12px;color:#94a3b8">No answers yet</div>'}
+<div style="text-align:center;margin-top:12px;font-size:10px;color:#94a3b8">Made on JohnWeb 🇿🇲 · johnweb-qncu.onrender.com</div>
+</div></div></body></html>`;
+  res.setHeader("Content-Type", "text/html");
+  res.send(html);
+});
+
+// ─── #17 PRINTABLE REPORT CARD (admin) ──────────────────────
+app.get("/api/admin/report/:userId", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const user = users.find((u) => u.id === req.params.userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const answers = readJSON("answers.json").filter((a) => a.userId === user.id);
+  const questions = readJSON("questions.json");
+  const papers = readJSON("papers.json");
+  const subs = readJSON("subjects.json");
+  const correct = answers.filter((a) => a.isCorrect).length;
+  const pct = answers.length ? Math.round((correct / answers.length) * 100) : 0;
+  const bySubject = {};
+  answers.forEach((a) => {
+    const q = questions.find((x) => x.id === a.questionId);
+    const p = q ? papers.find((x) => x.id === q.paperId) : null;
+    const sid = p?.subjectId;
+    if (!sid) return;
+    if (!bySubject[sid]) bySubject[sid] = { correct: 0, total: 0 };
+    bySubject[sid].total++; if (a.isCorrect) bySubject[sid].correct++;
+  });
+  const grade = pct >= 75 ? "A" : pct >= 60 ? "B" : pct >= 50 ? "C" : pct >= 40 ? "D" : "F";
+  const rows = Object.entries(bySubject).map(([sid, v]) => {
+    const s = subs.find((x) => x.id === sid);
+    const sp = v.total ? Math.round((v.correct / v.total) * 100) : 0;
+    const sg = sp >= 75 ? "A" : sp >= 60 ? "B" : sp >= 50 ? "C" : sp >= 40 ? "D" : "F";
+    return `<tr><td>${s?.name || "?"}</td><td style="text-align:center">${v.correct}/${v.total}</td><td style="text-align:center">${sp}%</td><td style="text-align:center;font-weight:bold">${sg}</td></tr>`;
+  }).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Report Card</title><style>body{font-family:Georgia,serif;max-width:700px;margin:auto;padding:40px;color:#1e293b}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #e2e8f0;padding:10px;text-align:left}th{background:#f8fafc}.head{text-align:center;border-bottom:3px double #15803d;padding-bottom:12px}@media print{.no-print{display:none}}</style></head><body>
+<div class="no-print" style="text-align:right"><button onclick="window.print()">🖨️ Print / Save PDF</button></div>
+<div class="head"><h1 style="color:#15803d;margin:0">JohnWeb Report Card</h1><p style="color:#64748b">Zambian ECZ Preparation Report</p></div>
+<p><strong>Student:</strong> ${user.name}</p><p><strong>Email:</strong> ${user.email}</p><p><strong>School:</strong> ${user.school || "—"}</p><p><strong>Overall:</strong> ${correct}/${answers.length} correct (${pct}%) · Grade <b>${grade}</b></p>
+<h3>Subject breakdown</h3>
+<table><tr><th>Subject</th><th>Score</th><th>Accuracy</th><th>Grade</th></tr>${rows || '<tr><td colspan="4" style="text-align:center;color:#94a3b8">No answers yet</td></tr>'}</table>
+<p style="color:#94a3b8;font-size:12px;margin-top:20px">Generated ${new Date().toLocaleDateString()} · JohnWeb</p>
+</body></html>`;
+  res.setHeader("Content-Type", "text/html");
+  res.setHeader("Content-Disposition", "attachment; filename=report-card-${user.name}.html");
+  res.send(html);
+});
+
 // ─── ADMIN ANALYTICS ───────────────────────────────────────
 app.get("/api/admin/analytics", adminAuth, (req, res) => {
   const users = readJSON("users.json");
@@ -2931,6 +3087,22 @@ app.get("/api/admin/analytics", adminAuth, (req, res) => {
       const s = p ? subs.find((x) => x.id === p.subjectId) : null;
       return { title: p?.title || "?", subject: s?.name, views: v.count };
     }),
+    // #15 predicted pass rate — students with >=50% accuracy are likely to pass
+    predictedPassRate: (() => {
+      const students = users.filter((u) => u.role === "student" && !u.banned);
+      const withAnswers = students.map((u) => {
+        const sa = answers.filter((a) => a.userId === u.id);
+        const c = sa.filter((a) => a.isCorrect).length;
+        return { total: sa.length, pct: sa.length ? Math.round((c / sa.length) * 100) : 0 };
+      }).filter((s) => s.total >= 5);
+      const passing = withAnswers.filter((s) => s.pct >= 50).length;
+      return withAnswers.length ? Math.round((passing / withAnswers.length) * 100) : 0;
+    })(),
+    readyStudents: users.filter((u) => {
+      const sa = answers.filter((a) => a.userId === u.id);
+      const c = sa.filter((a) => a.isCorrect).length;
+      return u.role === "student" && sa.length >= 5 && (sa.length ? c / sa.length : 0) >= 0.5;
+    }).length,
   });
 });
 

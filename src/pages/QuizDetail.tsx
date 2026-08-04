@@ -65,6 +65,7 @@ export default function QuizDetail() {
               <p className="text-sm text-gray-700 mb-1">{r.text}</p>
               {r.userAnswer && <p className="text-xs text-gray-500">Your answer: {r.userAnswer}</p>}
               {!r.isCorrect && <p className="text-xs text-green-600 mt-1">Model answer: {r.modelAnswer}</p>}
+              {!r.isCorrect && r.questionId && <MoreLikeThis questionId={r.questionId} />}
               {!r.isCorrect && (
                 <button
                   onClick={async () => {
@@ -168,6 +169,36 @@ export default function QuizDetail() {
       >
         {submitting ? "Submitting..." : "Submit Quiz"}
       </button>
+    </div>
+  );
+}
+
+function MoreLikeThis({ questionId }: { questionId: string }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const load = async () => {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (items.length === 0) {
+      const res = await fetch(`/api/questions/${questionId}/similar`);
+      const d = await res.json();
+      setItems(Array.isArray(d) ? d : []);
+    }
+  };
+  return (
+    <div className="mt-2">
+      <button onClick={load} className="text-xs text-blue-600 hover:underline">🔁 More like this</button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          {items.length === 0 && <p className="text-xs text-gray-400">No similar questions found.</p>}
+          {items.map((q: any, i: number) => (
+            <div key={i} className="p-2 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-700">{q.text}</div>
+              <div className="text-xs text-green-600 mt-1">✅ {q.modelAnswer}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
