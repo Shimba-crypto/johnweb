@@ -197,8 +197,8 @@ export default function Layout() {
       {/* Mobile drawer */}
       {open && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 shadow-xl flex-col">{sidebar}</aside>
+          <div className="absolute inset-0 bg-black/50 animate-fade-in" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 shadow-xl flex-col animate-slide-in-left">{sidebar}</aside>
         </div>
       )}
 

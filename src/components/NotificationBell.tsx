@@ -46,7 +46,7 @@ export default function NotificationBell() {
         {data.unread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{data.unread > 9 ? "9+" : data.unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl border shadow-lg z-50 max-h-96 overflow-y-auto">
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl border shadow-lg z-50 max-h-96 overflow-y-auto animate-dropdown">
           <div className="flex items-center justify-between p-3 border-b sticky top-0 bg-white">
             <span className="font-semibold text-sm">Notifications</span>
             {data.unread > 0 && <button onClick={markAllRead} className="text-xs text-green-600 hover:underline">Mark all read</button>}

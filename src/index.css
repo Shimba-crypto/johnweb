@@ -14,14 +14,50 @@
 .prose a { color: #16a34a; text-decoration: underline; }
 .prose pre { margin: 0.75rem 0; }
 
-:root {
-  --bg: #f8fafc;
-  --bg-card: #ffffff;
-  --text: #1e293b;
-  --text-secondary: #64748b;
-  --border: #e2e8f0;
-  --nav-bg: #ffffff;
+/* ─────────────────────────────────────────────
+   Dropdown / disclosure animations
+   ───────────────────────────────────────────── */
+
+/* Smooth height animation for <details> (model answers, answer keys, options) */
+details > *:not(summary) {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, margin 0.3s ease;
 }
+details[open] > *:not(summary) {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+details > *:not(summary) > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Pop-in for custom dropdown panels (notification bell, menus) */
+@keyframes dropdown-pop {
+  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-dropdown {
+  animation: dropdown-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: top right;
+}
+
+/* Slide-in for mobile drawers / side panels */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0.4; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-slide-in-left { animation: slide-in-left 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.animate-fade-in { animation: fade-in 0.25s ease; }
+
+
 
 [data-theme="dark"] {
   --bg: #0f172a;
