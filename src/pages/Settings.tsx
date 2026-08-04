@@ -145,6 +145,23 @@ export default function Settings() {
             <p className="text-sm text-gray-500 mb-3">If you suspect your account was compromised, revoke all sessions immediately. You'll need to log in again.</p>
             <button onClick={logoutAll} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">Log Out of All Devices</button>
           </div>
+          {user.role === "student" && (
+            <div className="bg-white p-6 rounded-xl border shadow-sm">
+              <h3 className="font-semibold mb-1">🧑‍🏫 Become a Teacher</h3>
+              <p className="text-sm text-gray-500 mb-3">Apply to become a teacher so you can grade answers and create quizzes. An admin will review your application.</p>
+              <button
+                onClick={async () => {
+                  const t = localStorage.getItem("token");
+                  const r = await fetch("/api/auth/request-teacher", { method: "POST", headers: { Authorization: `Bearer ${t}` } });
+                  const d = await r.json();
+                  setMsg(d.message || d.error || "Done");
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+              >
+                Request Teacher Account
+              </button>
+            </div>
+          )}
         </div>
       )}
 

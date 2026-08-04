@@ -505,6 +505,16 @@ app.get("/api/users/:id/public", (req, res) => {
 app.use("/api/admin", adminSecret);
 app.use("/api/users", adminSecret);
 
+// Maintenance mode: block student-facing API when enabled (admin + login still work)
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/admin") || req.path === "/meta" || req.path === "/auth/login") return next();
+  const settings = readJSON("settings.json");
+  if (settings && settings.maintenance) {
+    return res.status(503).json({ error: "JohnWeb is under maintenance. Check back soon.", maintenance: true });
+  }
+  next();
+});
+
 function getUser(req) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
@@ -3268,6 +3278,174 @@ app.get("/api/papers/:id/offline", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Disposition", `attachment; filename=${paper.id}-offline.json`);
   res.send(JSON.stringify(data, null, 2));
+});
+
+// ─── ADMIN TOOLS ─────────────────────────────────────────
+// 1. Broadcast notification to all users (or a role)
+app.post("/api/admin/broadcast", adminAuth, (req, res) => {
+  const { title, message, role } = req.body;
+  if (!title || !message) return res.status(400).json({ error: "title and message required" });
+  const users = readJSON("users.json").filter((u) => !role || u.role === role);
+  users.forEach((u) => addNotification(u.id, "broadcast", title, message, "/browse"));
+  adminLog("broadcast", req.user.id, req.user.name, `to ${users.length} users: ${title}`);
+  res.json({ sent: users.length });
+});
+
+// 2. Question analytics per paper
+app.get("/api/admin/question-analytics", adminAuth, (req, res) => {
+  const { paperId } = req.query;
+  if (!paperId) return res.status(400).json({ error: "paperId required" });
+  const questions = readJSON("questions.json").filter((q) => q.paperId === paperId);
+  const answers = readJSON("answers.json");
+  const rows = questions.map((q) => {
+    const qa = answers.filter((a) => a.questionId === q.id);
+    const correct = qa.filter((a) => a.isCorrect).length;
+    return {
+      id: q.id, questionNumber: q.questionNumber, text: q.text.slice(0, 80),
+      attempts: qa.length, correct, accuracy: qa.length ? Math.round((correct / qa.length) * 100) : null,
+    };
+  }).sort((a, b) => (a.accuracy ?? 0) - (b.accuracy ?? 0));
+  res.json(rows);
+});
+
+// 3. Moderation queue: flagged answers + comments
+app.get("/api/admin/moderation", adminAuth, (req, res) => {
+  const answers = readJSON("answers.json").filter((a) => a.flagged);
+  const users = readJSON("users.json");
+  const flagged = answers.map((a) => {
+    const u = users.find((x) => x.id === a.userId);
+    return { ...a, studentName: u?.name || "?" };
+  });
+  res.json({ flaggedAnswers: flagged, comments: readJSON("comments.json").slice(-100).reverse() });
+});
+
+// Delete a comment (moderation)
+app.delete("/api/admin/comments/:id", adminAuth, (req, res) => {
+  let comments = readJSON("comments.json");
+  comments = comments.filter((c) => c.id !== req.params.id);
+  writeJSON("comments.json", comments);
+  res.json({ ok: true });
+});
+
+// Clear a flag after review
+app.post("/api/admin/answers/:id/clear-flag", adminAuth, (req, res) => {
+  const answers = readJSON("answers.json");
+  const idx = answers.findIndex((a) => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found" });
+  answers[idx].flagged = false;
+  delete answers[idx].flagReason;
+  writeJSON("answers.json", answers);
+  res.json({ ok: true });
+});
+
+// 4. Duplicate question finder (same normalized text)
+app.get("/api/admin/duplicates", adminAuth, (req, res) => {
+  const questions = readJSON("questions.json");
+  const byText = {};
+  questions.forEach((q) => {
+    const key = q.text.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!byText[key]) byText[key] = [];
+    byText[key].push({ id: q.id, paperId: q.paperId, questionNumber: q.questionNumber });
+  });
+  const groups = Object.values(byText).filter((g) => g.length > 1);
+  res.json(groups.slice(0, 100));
+});
+
+// 5. Question quality checker
+app.get("/api/admin/quality", adminAuth, (req, res) => {
+  const questions = readJSON("questions.json");
+  const issues = [];
+  questions.forEach((q) => {
+    if (!q.text || !String(q.text).trim()) issues.push({ q: q.id, paperId: q.paperId, issue: "Empty question text" });
+    else if (q.type === "mcq" && (!Array.isArray(q.options) || q.options.length < 2)) issues.push({ q: q.id, paperId: q.paperId, issue: "MCQ with <2 options" });
+    else if (q.type === "mcq" && Array.isArray(q.options) && !q.modelAnswer) issues.push({ q: q.id, paperId: q.paperId, issue: "MCQ with no answer" });
+    else if (q.type === "mcq" && Array.isArray(q.options) && q.modelAnswer && !q.options.includes(q.modelAnswer)) issues.push({ q: q.id, paperId: q.paperId, issue: "MCQ answer not in options" });
+    else if (!q.modelAnswer) issues.push({ q: q.id, paperId: q.paperId, issue: "No model answer" });
+  });
+  res.json(issues.slice(0, 200));
+});
+
+// 6+7. Announcement + maintenance come from settings (GET/PUT /api/admin/settings)
+// 8. Revenue dashboard
+app.get("/api/admin/revenue", adminAuth, (req, res) => {
+  const payments = readJSON("payments.json").filter((p) => p.status === "completed");
+  const codes = readJSON("codes.json").filter((c) => c.status === "used");
+  const byMonth = {};
+  payments.forEach((p) => {
+    const m = (p.confirmedAt || p.createdAt || "").slice(0, 7);
+    if (m) byMonth[m] = (byMonth[m] || 0) + (p.amount || 0);
+  });
+  const totalPayments = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  res.json({ payments: { count: payments.length, total: totalPayments, byMonth }, codes: { count: codes.length } });
+});
+
+// 10. Bulk cleanup of inactive accounts (0 answers, older than N days)
+app.post("/api/admin/bulk-cleanup", adminAuth, (req, res) => {
+  const days = parseInt(req.body.days) || 90;
+  const users = readJSON("users.json");
+  const answers = readJSON("answers.json");
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const doomed = users.filter((u) => {
+    if (["super_admin", "admin", "dev", "bot", "mod_bot"].includes(u.role)) return false;
+    const created = new Date(u.createdAt).getTime();
+    if (created > cutoff) return false;
+    if (answers.some((a) => a.userId === u.id)) return false;
+    return true;
+  });
+  const ids = doomed.map((u) => u.id);
+  writeJSON("users.json", users.filter((u) => !ids.includes(u.id)));
+  res.json({ deleted: ids.length, emailSample: doomed.slice(0, 5).map((u) => u.email) });
+});
+
+// 11. Teacher applications
+app.post("/api/auth/request-teacher", auth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.user.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  users[idx].wantsTeacher = true;
+  writeJSON("users.json", users);
+  res.json({ message: "Application sent. An admin will review it." });
+});
+
+app.get("/api/admin/teacher-applications", adminAuth, (req, res) => {
+  const users = readJSON("users.json").filter((u) => u.wantsTeacher && u.role === "student");
+  res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, createdAt: u.createdAt })));
+});
+
+app.post("/api/admin/teacher-applications/:id/approve", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  users[idx].role = "teacher";
+  delete users[idx].wantsTeacher;
+  writeJSON("users.json", users);
+  addNotification(users[idx].id, "role_change", "Teacher Approved", "Your application to become a teacher was approved!", "/settings");
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/teacher-applications/:id/reject", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  delete users[idx].wantsTeacher;
+  writeJSON("users.json", users);
+  addNotification(users[idx].id, "role_change", "Application Declined", "Your teacher application was declined.", "/settings");
+  res.json({ ok: true });
+});
+
+// 12. API key management: list bots with masked keys
+app.get("/api/admin/bots", adminAuth, (req, res) => {
+  const users = readJSON("users.json").filter((u) => u.role === "bot" || u.role === "mod_bot");
+  res.json(users.map((u) => ({ id: u.id, name: u.name, role: u.role, subjects: u.subjects || [], apiKey: u.apiKey || null, apiKeyHash: !!u.apiKeyHash })));
+});
+
+// Public meta (announcement + maintenance) for the frontend
+app.get("/api/meta", (req, res) => {
+  const settings = readJSON("settings.json");
+  res.json({
+    maintenance: !!settings.maintenance,
+    announcement: settings.announcement ? { text: settings.announcement.text || "", enabled: settings.announcement.enabled !== false } : { text: "", enabled: false },
+  });
 });
 
 // Init empty data files

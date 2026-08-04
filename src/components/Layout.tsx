@@ -7,6 +7,8 @@ export default function Layout() {
   const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
   const [open, setOpen] = useState(false);
   const [streak, setStreak] = useState<{ streak: number; activeToday: boolean } | null>(null);
+  const [maintenance, setMaintenance] = useState(false);
+  const [announcement, setAnnouncement] = useState<{ text: string; enabled: boolean }>({ text: "", enabled: false });
   const location = useLocation();
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); localStorage.setItem("theme", dark ? "dark" : "light"); }, [dark]);
@@ -57,6 +59,13 @@ export default function Layout() {
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [location.pathname, user]);
+
+  useEffect(() => {
+    fetch("/api/meta").then((r) => r.json()).then((d) => {
+      setMaintenance(!!d.maintenance);
+      if (d.announcement) setAnnouncement(d.announcement);
+    }).catch(() => {});
+  }, []);
 
   const logout = () => { localStorage.removeItem("token"); localStorage.removeItem("refreshToken"); localStorage.removeItem("user"); setUser(null); window.location.href = "/"; };
 
@@ -190,6 +199,21 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
+      {maintenance && (!user || (user.role !== "admin" && user.role !== "super_admin" && user.role !== "omni_super")) ? (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center">
+            <div className="text-5xl mb-4">🛠️</div>
+            <h1 className="text-2xl font-bold mb-2">We'll be right back</h1>
+            <p className="text-gray-500">JohnWeb is under maintenance. Please check back soon.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+      {announcement.enabled && announcement.text && (
+        <div className="bg-blue-600 text-white text-center text-sm py-2 px-4">
+          📢 {announcement.text}
+        </div>
+      )}
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 flex-col animate-slide-in-left">
         {sidebar}
@@ -234,6 +258,8 @@ export default function Layout() {
           </div>
         </main>
       </div>
+        </>
+      )}
     </div>
   );
 }

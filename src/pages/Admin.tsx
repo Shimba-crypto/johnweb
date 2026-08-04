@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
 
-type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "codes" | "analytics" | "users";
+type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "codes" | "analytics" | "users" | "tools" | "moderation" | "apikeys" | "roles";
 
 export default function Admin() {
   usePageTitle("Admin Panel");
@@ -167,6 +167,10 @@ export default function Admin() {
     { key: "payments", label: "Payments" },
     { key: "invites", label: "Invites" },
     { key: "codes", label: "Codes" },
+    { key: "tools", label: "Tools" },
+    { key: "moderation", label: "Moderation" },
+    { key: "apikeys", label: "API Keys" },
+    { key: "roles", label: "Roles" },
     { key: "analytics", label: "Analytics" },
     { key: "users", label: "Users" },
   ];
@@ -564,6 +568,10 @@ export default function Admin() {
 
       {tab === "invites" && <InvitesTab api={api} />}
       {tab === "codes" && <CodesTab api={api} />}
+      {tab === "tools" && <ToolsTab api={api} papers={papers} />}
+      {tab === "moderation" && <ModerationTab api={api} />}
+      {tab === "apikeys" && <ApiKeysTab api={api} />}
+      {tab === "roles" && <RolesTab api={api} />}
 
       {tab === "analytics" && <AnalyticsTab token={token} />}
 
@@ -866,6 +874,290 @@ function CodesTab({ api }: { api: any }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ToolsTab({ api, papers }: { api: any; papers: any[] }) {
+  const [bTitle, setBTitle] = useState("");
+  const [bMsg, setBMsg] = useState("");
+  const [announce, setAnnounce] = useState<{ text: string; enabled: boolean }>({ text: "", enabled: false });
+  const [maintenance, setMaintenance] = useState(false);
+  const [quality, setQuality] = useState<any[] | null>(null);
+  const [dups, setDups] = useState<any[] | null>(null);
+  const [analytics, setAnalytics] = useState<any[] | null>(null);
+  const [revenue, setRevenue] = useState<any>(null);
+  const [paperId, setPaperId] = useState("");
+  const [cleanupDays, setCleanupDays] = useState(90);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    api("GET", "/api/admin/settings").then((s: any) => {
+      setAnnounce(s.announcement ? { text: s.announcement.text || "", enabled: s.announcement.enabled !== false } : { text: "", enabled: false });
+      setMaintenance(!!s.maintenance);
+    }).catch(() => {});
+    api("GET", "/api/admin/revenue").then(setRevenue).catch(() => {});
+  }, []);
+
+  const broadcast = async () => {
+    if (!bTitle || !bMsg) return alert("Title and message required");
+    const r = await api("POST", "/api/admin/broadcast", { title: bTitle, message: bMsg });
+    setMsg(`📣 Notification sent to ${r.sent} users`); setBTitle(""); setBMsg("");
+  };
+
+  const saveAnnounce = async () => {
+    await api("PUT", "/api/admin/settings", { announcement: announce });
+    setMsg("Announcement saved");
+  };
+
+  const toggleMaintenance = async () => {
+    const on = !maintenance;
+    if (on && !confirm("Turn ON maintenance mode? Students will see a maintenance screen.")) return;
+    await api("PUT", "/api/admin/settings", { maintenance: on });
+    setMaintenance(on); setMsg(on ? "🛠️ Maintenance mode ON" : "Site is live again");
+  };
+
+  const runCleanup = async () => {
+    if (!confirm(`Delete accounts with 0 answers and no activity for ${cleanupDays}+ days? This cannot be undone.`)) return;
+    const r = await api("POST", "/api/admin/bulk-cleanup", { days: cleanupDays });
+    setMsg(`🗑️ Cleaned ${r.deleted} inactive accounts`);
+  };
+
+  const loadQuestionAnalytics = async () => {
+    if (!paperId) return alert("Pick a paper first");
+    const r = await api("GET", `/api/admin/question-analytics?paperId=${paperId}`);
+    setAnalytics(r);
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Tools</h2>
+      {msg && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-2 mb-4">{msg}</p>}
+
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">📣 Broadcast Notification</h3>
+          <input value={bTitle} onChange={(e) => setBTitle(e.target.value)} placeholder="Title" className="w-full p-2 border rounded-lg mb-2 text-sm" />
+          <textarea value={bMsg} onChange={(e) => setBMsg(e.target.value)} placeholder="Message" className="w-full p-2 border rounded-lg mb-2 text-sm min-h-[70px]" />
+          <button onClick={broadcast} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Send to all students</button>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">📢 Announcement Bar</h3>
+          <input value={announce.text} onChange={(e) => setAnnounce({ ...announce, text: e.target.value })} placeholder="e.g. New papers uploaded!" className="w-full p-2 border rounded-lg mb-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm mb-2"><input type="checkbox" checked={announce.enabled} onChange={(e) => setAnnounce({ ...announce, enabled: e.target.checked })} /> Enabled</label>
+          <button onClick={saveAnnounce} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Save Announcement</button>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">🛠️ Maintenance Mode</h3>
+          <p className="text-sm text-gray-500 mb-2">Blocks students from the site. Admins still have access.</p>
+          <button onClick={toggleMaintenance} className={`px-4 py-2 rounded-lg text-sm ${maintenance ? "bg-green-600 text-white hover:bg-green-700" : "bg-red-600 text-white hover:bg-red-700"}`}>
+            {maintenance ? "Turn OFF (go live)" : "Turn ON maintenance"}
+          </button>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">🗑️ Bulk Cleanup</h3>
+          <div className="flex gap-2 mb-2">
+            <input type="number" value={cleanupDays} onChange={(e) => setCleanupDays(parseInt(e.target.value) || 90)} className="p-2 border rounded-lg w-24 text-sm" />
+            <span className="text-sm text-gray-500 self-center">days inactive (0 answers)</span>
+          </div>
+          <button onClick={runCleanup} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700">Clean up inactive accounts</button>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">💰 Revenue</h3>
+          {revenue ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span>Completed payments</span><span className="font-semibold">{revenue.payments.count}</span></div>
+              <div className="flex justify-between"><span>Total revenue</span><span className="font-semibold text-green-600">K{revenue.payments.total}</span></div>
+              <div className="flex justify-between"><span>Codes redeemed</span><span className="font-semibold">{revenue.codes.count}</span></div>
+              <div className="pt-2 border-t"><span className="text-xs text-gray-400">By month: {Object.entries(revenue.payments.byMonth).map(([m, v]: any) => `${m} K${v}`).join(" · ") || "none"}</span></div>
+            </div>
+          ) : <p className="text-sm text-gray-400">Loading...</p>}
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <h3 className="font-semibold mb-3">❓ Question Analytics</h3>
+          <div className="flex gap-2 mb-2">
+            <select value={paperId} onChange={(e) => setPaperId(e.target.value)} className="flex-1 p-2 border rounded-lg text-sm">
+              <option value="">Select paper...</option>
+              {papers.map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+            <button onClick={loadQuestionAnalytics} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Load</button>
+          </div>
+          {analytics && (
+            <div className="max-h-64 overflow-y-auto space-y-1 text-sm">
+              {analytics.slice(0, 30).map((q: any) => (
+                <div key={q.id} className="flex justify-between gap-2 border-b pb-1">
+                  <span className="truncate">Q{q.questionNumber}. {q.text}</span>
+                  <span className={`shrink-0 ${q.accuracy !== null && q.accuracy < 50 ? "text-red-600 font-semibold" : "text-gray-500"}`}>{q.attempts > 0 ? `${q.accuracy}% (${q.correct}/${q.attempts})` : "no attempts"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">✅ Question Quality Checker</h3>
+            <button onClick={() => api("GET", "/api/admin/quality").then(setQuality)} className="text-sm text-blue-600 hover:underline">Run check</button>
+          </div>
+          {quality && (quality.length === 0 ? <p className="text-sm text-green-600">No quality issues found 🎉</p> : (
+            <div className="max-h-64 overflow-y-auto space-y-1 text-sm text-red-600">{quality.slice(0, 40).map((q: any, i: number) => <div key={i} className="border-b pb-1">{q.issue} — {q.paperId}</div>)}</div>
+          ))}
+        </div>
+        <div className="bg-white p-5 rounded-xl border shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">🔁 Duplicate Questions</h3>
+            <button onClick={() => api("GET", "/api/admin/duplicates").then(setDups)} className="text-sm text-blue-600 hover:underline">Find duplicates</button>
+          </div>
+          {dups && (dups.length === 0 ? <p className="text-sm text-green-600">No duplicates found 🎉</p> : (
+            <div className="max-h-64 overflow-y-auto space-y-2 text-sm">{dups.slice(0, 20).map((g: any, i: number) => <div key={i} className="border-b pb-1 text-gray-600">{g.map((x: any) => `${x.paperId} Q${x.questionNumber}`).join("  ↔  ")}</div>)}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModerationTab({ api }: { api: any }) {
+  const [data, setData] = useState<any>({ flaggedAnswers: [], comments: [] });
+  const load = () => api("GET", "/api/admin/moderation").then(setData).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Moderation</h2>
+      <h3 className="font-semibold mb-2">🚨 Flagged Answers ({data.flaggedAnswers.length})</h3>
+      {data.flaggedAnswers.length === 0 && <p className="text-sm text-gray-400 mb-4">No flagged answers.</p>}
+      <div className="space-y-2 mb-6">
+        {data.flaggedAnswers.map((a: any) => (
+          <div key={a.id} className="bg-white p-4 rounded-xl border shadow-sm">
+            <div className="flex justify-between text-xs text-gray-500 mb-1"><span>{a.studentName}</span><span>{a.flagReason}</span></div>
+            <p className="text-sm text-gray-700 mb-2">{a.content}</p>
+            <div className="flex gap-2">
+              <button onClick={async () => { await api("POST", `/api/admin/answers/${a.id}/clear-flag`); load(); }} className="text-xs bg-green-600 text-white px-3 py-1 rounded">Clear flag</button>
+              <button onClick={async () => { await api("POST", `/api/admin/answers/${a.id}/review`, { isCorrect: false, feedback: "Removed for review" }); load(); }} className="text-xs bg-yellow-600 text-white px-3 py-1 rounded">Mark reviewed</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h3 className="font-semibold mb-2">💬 Recent Comments ({data.comments.length})</h3>
+      <div className="space-y-2">
+        {data.comments.map((c: any) => (
+          <div key={c.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+            <div className="min-w-0"><span className="text-xs text-gray-400">{c.userName}</span><p className="text-sm text-gray-700 truncate">{c.content}</p></div>
+            <button onClick={async () => { if (confirm("Delete this comment?")) { await api("DELETE", `/api/admin/comments/${c.id}`); load(); } }} className="shrink-0 text-xs text-red-600 hover:underline">Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ApiKeysTab({ api }: { api: any }) {
+  const [bots, setBots] = useState<any[]>([]);
+  const [name, setName] = useState("");
+  const [subjects, setSubjects] = useState("");
+  const load = () => api("GET", "/api/admin/bots").then(setBots).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const createBot = async () => {
+    if (!name) return alert("Bot name required");
+    const r = await api("POST", "/api/admin/bots", { name, subjects: subjects.split(",").map((s) => s.trim()).filter(Boolean) });
+    if (r.apiKey) alert(`Bot created!\nAPI Key: ${r.apiKey}\n\nSave it — shown once.`);
+    else alert(r.error || "Error");
+    setName(""); setSubjects(""); load();
+  };
+
+  const resetKey = async (id: string) => {
+    const r = await api("POST", `/api/admin/bots/${id}/reset-key`);
+    if (r.apiKey) alert(`New API key:\n${r.apiKey}\n\nSave it — shown once.`);
+    load();
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">API Keys</h2>
+      <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bot name" className="p-2 border rounded-lg text-sm flex-1 min-w-[140px]" />
+        <input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Subjects (comma-separated)" className="p-2 border rounded-lg text-sm flex-1 min-w-[180px]" />
+        <button onClick={createBot} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Create Bot</button>
+      </div>
+      <div className="space-y-2">
+        {bots.map((b) => (
+          <div key={b.id} className="bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+            <div>
+              <div className="font-medium">{b.name} <span className="text-xs text-gray-400">({b.role})</span></div>
+              <div className="text-xs text-gray-500">{b.subjects.join(", ") || "—"} · key: {b.apiKey ? b.apiKey.slice(0, 14) + "..." : "hashed ✓"}</div>
+            </div>
+            <button onClick={() => resetKey(b.id)} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">Reset Key</button>
+          </div>
+        ))}
+        {bots.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No bots yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+function RolesTab({ api }: { api: any }) {
+  const [apps, setApps] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const load = () => {
+    api("GET", "/api/admin/teacher-applications").then(setApps).catch(() => {});
+    api("GET", "/api/users").then(setUsers).catch(() => {});
+  };
+  useEffect(() => { load(); }, []);
+
+  const approve = async (id: string) => { await api("POST", `/api/admin/teacher-applications/${id}/approve`); load(); };
+  const reject = async (id: string) => { await api("POST", `/api/admin/teacher-applications/${id}/reject`); load(); };
+  const setRole = async (id: string) => {
+    const role = prompt("New role (student, investor, teacher, dev, admin, super_admin):");
+    if (!role) return;
+    const r = await api("PUT", `/api/admin/users/${id}/role`, { role });
+    if (r.error) alert(r.error); else load();
+  };
+
+  const byRole = users.reduce((acc: any, u: any) => { (acc[u.role] = acc[u.role] || []).push(u); return acc; }, {});
+  const counts = Object.entries(byRole).map(([role, list]: any) => ({ role, count: list.length }));
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">Roles & Teacher Applications</h2>
+      <h3 className="font-semibold mb-2">🧑‍🏫 Teacher Applications ({apps.length})</h3>
+      {apps.length === 0 && <p className="text-sm text-gray-400 mb-4">No pending teacher applications.</p>}
+      <div className="space-y-2 mb-6">
+        {apps.map((u: any) => (
+          <div key={u.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+            <div><span className="font-medium">{u.name}</span><div className="text-xs text-gray-500">{u.email}</div></div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => approve(u.id)} className="text-xs bg-green-600 text-white px-3 py-1 rounded">Approve</button>
+              <button onClick={() => reject(u.id)} className="text-xs bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h3 className="font-semibold mb-2">👥 Users by Role</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {counts.map((c: any) => <div key={c.role} className="bg-white p-3 rounded-xl border shadow-sm text-center"><div className="text-xl font-bold">{c.count}</div><div className="text-xs text-gray-500">{c.role}</div></div>)}
+      </div>
+      <div className="space-y-2">
+        {users.map((u: any) => (
+          <div key={u.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between gap-3">
+            <div><span className="font-medium text-sm">{u.name}</span><div className="text-xs text-gray-500">{u.email}</div></div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{u.role}</span>
+              <button onClick={() => setRole(u.id)} className="text-xs text-blue-600 hover:underline">Change</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
