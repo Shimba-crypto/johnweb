@@ -693,12 +693,12 @@ function InvitesTab({ api }: { api: any }) {
         <div>
           <label className="block text-sm font-medium mb-1">Invite Type</label>
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setRole("student")} className={`p-4 rounded-xl border-2 text-center transition ${role === "student" ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}>
+            <button type="button" onClick={() => { setRole("student"); setPlan("free"); }} className={`p-4 rounded-xl border-2 text-center transition ${role === "student" ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}>
               <div className="text-2xl mb-1">🎓</div>
               <div className="font-semibold">Student Invite</div>
               <div className="text-xs text-gray-500">Join as a student</div>
             </button>
-            <button type="button" onClick={() => setRole("teacher")} className={`p-4 rounded-xl border-2 text-center transition ${role === "teacher" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
+            <button type="button" onClick={() => { setRole("teacher"); setPlan("k200"); }} className={`p-4 rounded-xl border-2 text-center transition ${role === "teacher" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"}`}>
               <div className="text-2xl mb-1">👨‍🏫</div>
               <div className="font-semibold">Teacher Invite</div>
               <div className="text-xs text-gray-500">Join as a teacher</div>
@@ -710,6 +710,7 @@ function InvitesTab({ api }: { api: any }) {
           <select value={plan} onChange={(e) => setPlan(e.target.value)} className="w-full p-2 border rounded-lg">
             {planOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
+          {role === "teacher" && plan !== "k200" && <p className="text-xs text-amber-600 mt-1">⚠️ Teachers should be K200 — did you mean to pick a different plan?</p>}
           <p className="text-xs text-gray-400 mt-1">Paid plans show the price on the invite — payment is confirmed by you before the account activates.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-3">

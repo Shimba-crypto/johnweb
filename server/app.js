@@ -2563,8 +2563,10 @@ app.post("/api/admin/invites", adminAuth, (req, res) => {
   const { role, school, teacherName, teacherId, maxUses, plan } = req.body;
   const validRoles = ["student", "teacher"];
   const r = validRoles.includes(role) ? role : "student";
-  // plan determines the price (e.g. k200 = K200 teacher plan)
-  const chosenPlan = PLANS[plan] ? plan : (r === "teacher" ? "k200" : null);
+  // plan determines the price (e.g. k200 = K200 teacher plan).
+  // Teacher invites always get a paid plan (K200 by default).
+  let chosenPlan = PLANS[plan] ? plan : null;
+  if (r === "teacher" && (!chosenPlan || PLANS[chosenPlan].price === 0)) chosenPlan = "k200";
   const price = chosenPlan ? PLANS[chosenPlan].price : 0;
   const invites = readJSON("invites.json");
   const token = genToken();
