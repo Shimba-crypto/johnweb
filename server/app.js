@@ -1929,7 +1929,7 @@ app.post("/api/payments/initiate", auth, (req, res) => {
   payments.push(payment);
   writeJSON("payments.json", payments);
   adminLog("payment_initiated", req.user.id, req.user.name, `${plan} - ${phone}`);
-  res.json({ message: `Payment request of K${plans[plan]} sent to ${phone}. Pay via Airtel Money or MTN Mobile Money.`, paymentId: payment.id });
+  res.json({ message: `Pay K${plans[plan]} to 0771460648 (Airtel/MTN Mobile Money), then send a message confirming your payment.`, paymentId: payment.id });
 });
 
 app.get("/api/payments", auth, (req, res) => {

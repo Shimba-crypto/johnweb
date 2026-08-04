@@ -27,16 +27,21 @@ export default function Contact() {
       <h1 className="text-3xl font-bold mb-2">Contact Us</h1>
       <p className="text-gray-500 mb-8">Have a question, suggestion, or issue? We'd love to hear from you.</p>
 
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-4 rounded-xl border shadow-sm text-center">
           <div className="text-2xl mb-1">📧</div>
           <div className="font-medium">Email</div>
           <div className="text-sm text-gray-500">support@johnweb.com</div>
         </div>
         <div className="bg-white p-4 rounded-xl border shadow-sm text-center">
+          <div className="text-2xl mb-1">📱</div>
+          <div className="font-medium">Call / SMS</div>
+          <a href="tel:+260771460648" className="text-sm text-green-600 hover:underline">+260 771 460 648</a>
+        </div>
+        <div className="bg-white p-4 rounded-xl border shadow-sm text-center">
           <div className="text-2xl mb-1">💬</div>
-          <div className="font-medium">Live Chat</div>
-          <div className="text-sm text-gray-500">Chat with our bots</div>
+          <div className="font-medium">WhatsApp</div>
+          <a href="https://wa.me/260771460648" target="_blank" rel="noopener noreferrer" className="text-sm text-green-600 hover:underline">Chat on WhatsApp</a>
         </div>
       </div>
 
