@@ -230,6 +230,7 @@ app.post("/api/auth/register", (req, res) => {
   const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, tokenVersion: 1, createdAt: new Date().toISOString() };
   users.push(user);
   writeJSON("users.json", users);
+  addNotification(user.id, "welcome", "👋 Welcome to JohnWeb!", `Hi ${name}! Practice real ECZ past papers, take quizzes and earn badges. Start with a Grade 7 paper.`, "/browse");
   res.json({ message: "User created", user: { id: user.id, name: user.name, email: user.email } });
 });
 
@@ -1062,6 +1063,20 @@ app.post("/api/answers", (req, res) => {
       const admins = readJSON("users.json").filter((u) => ["admin", "super_admin"].includes(u.role));
       admins.forEach((a) => addNotification(a.id, "pending_review", "Answer Needs Review", "A student answer needs your review.", "/admin"));
     }
+    // Team goal reached: notify the whole team when combined correct answers hit the goal
+    if (autoCorrect) {
+      try {
+        const teams = readJSON("teams.json");
+        const answersAll = readJSON("answers.json");
+        const team = teams.find((t) => t.members.includes(userId));
+        if (team && team.goal) {
+          const correctCount = answersAll.filter((a) => team.members.includes(a.userId) && a.isCorrect).length;
+          if (correctCount >= team.goal) {
+            team.members.forEach((mid) => addNotification(mid, "team_goal", "🎯 Team Goal Reached!", `Your team ${team.name} reached ${team.goal} correct answers!`, "/teams"));
+          }
+        }
+      } catch {}
+    }
     awardXp(userId, autoCorrect ? 20 : 10, autoCorrect ? "Correct answer" : "Submitted answer");
     res.json(answer);
   } catch { res.status(401).json({ error: "Invalid token" }); }
@@ -1629,6 +1644,8 @@ function awardXp(userId, amount, reason) {
   const xpData = readJSON("xp.json");
   let record = xpData.find((x) => x.userId === userId);
   if (!record) { record = { id: uuidv4(), userId, xp: 0, streak: 0, badges: [], lastActivity: null }; xpData.push(record); }
+  const prevLevel = Math.floor(Math.sqrt(record.xp / 100)) + 1;
+  const prevBadges = record.badges ? [...record.badges] : [];
   record.xp += amount || 10;
   const now = new Date();
   const today = now.toDateString();
@@ -1648,6 +1665,11 @@ function awardXp(userId, amount, reason) {
   if (record.streak >= 30) badges.push("⚡ Monthly Streak");
   record.badges = badges;
   writeJSON("xp.json", xpData);
+  // Notify on level-up and new badges
+  const level = Math.floor(Math.sqrt(record.xp / 100)) + 1;
+  if (level > prevLevel) addNotification(userId, "level_up", "🎉 Level Up!", `You reached Level ${level}!`, "/profile");
+  const newBadges = badges.filter((b) => !prevBadges.includes(b));
+  newBadges.forEach((b) => addNotification(userId, "badge_earned", "🏅 New Badge", `You earned: ${b}`, "/achievements"));
 }
 
 app.get("/api/gamification/:userId", (req, res) => {
@@ -1919,7 +1941,7 @@ app.post("/api/boss-battle/submit", auth, (req, res) => {
   const badge = percentage >= 80 ? "🐉 Boss Slayer" : percentage >= 50 ? "⚔️ Warrior" : "🛡️ Challenger";
   const xpData = readJSON("xp.json");
   const rec = xpData.find((x) => x.userId === req.user.id);
-  if (rec && !rec.badges.includes(badge)) { rec.badges.push(badge); writeJSON("xp.json", xpData); }
+  if (rec && !rec.badges.includes(badge)) { rec.badges.push(badge); writeJSON("xp.json", xpData); addNotification(req.user.id, "badge_earned", "🏅 New Badge", `You earned: ${badge} in this week's Boss Battle!`, "/achievements"); }
   res.json({ score: correct, total, percentage, xp, badge });
 });
 
@@ -2062,6 +2084,7 @@ app.get("/api/certificate", auth, (req, res) => {
   } else {
     cert = { id: uuidv4(), userId: req.user.id, name: req.user.name, answers: answers.length, correct, pct, level, xp: xp?.xp || 0, createdAt: new Date().toISOString() };
     certs.push(cert);
+    addNotification(req.user.id, "certificate", "🎓 Certificate Earned", "You earned your JohnWeb certificate! Download it from your profile.", "/profile");
   }
   writeJSON("certificates.json", certs);
   const verifyUrl = `https://johnweb-qncu.onrender.com/verify/cert/${cert.id}`;

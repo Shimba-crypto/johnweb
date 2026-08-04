@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 export default function NotificationBell() {
   const [data, setData] = useState<{ notifications: any[]; unread: number }>({ notifications: [], unread: 0 });
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
   const ref = useRef<HTMLDivElement>(null);
   const user = localStorage.getItem("user");
 
@@ -47,12 +48,19 @@ export default function NotificationBell() {
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl border shadow-lg z-50 max-h-96 overflow-y-auto animate-dropdown">
-          <div className="flex items-center justify-between p-3 border-b sticky top-0 bg-white">
+          <div className="flex items-center justify-between p-3 border-b sticky top-0 bg-white z-10">
             <span className="font-semibold text-sm">Notifications</span>
-            {data.unread > 0 && <button onClick={markAllRead} className="text-xs text-green-600 hover:underline">Mark all read</button>}
+            <div className="flex items-center gap-1">
+              {(["all", "unread"] as const).map((f) => (
+                <button key={f} onClick={() => setFilter(f)} className={`text-xs px-2 py-0.5 rounded-full ${filter === f ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
+                  {f === "all" ? "All" : `Unread${data.unread ? ` (${data.unread})` : ""}`}
+                </button>
+              ))}
+              {data.unread > 0 && <button onClick={markAllRead} className="text-xs text-green-600 hover:underline ml-1">Mark all read</button>}
+            </div>
           </div>
-          {data.notifications.length === 0 && <p className="p-4 text-center text-gray-400 text-sm">No notifications</p>}
-          {data.notifications.map((n) => (
+          {data.notifications.filter((n) => filter === "all" || !n.read).length === 0 && <p className="p-4 text-center text-gray-400 text-sm">{filter === "all" ? "No notifications" : "No unread notifications"}</p>}
+          {data.notifications.filter((n) => filter === "all" || !n.read).map((n) => (
             <Link key={n.id} to={n.link || "#"} onClick={() => { if (!n.read) markRead(n.id); setOpen(false); }} className={`block p-3 border-b last:border-b-0 hover:bg-gray-50 ${!n.read ? "bg-green-50" : ""}`}>
               <div className="text-sm font-medium">{n.title}</div>
               <div className="text-xs text-gray-500 truncate">{n.message}</div>
