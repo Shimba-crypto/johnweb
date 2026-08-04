@@ -2680,6 +2680,16 @@ app.get("/api/invites/:token/status", (req, res) => {
 });
 
 // Admin confirms payment → activates the account + plan
+app.delete("/api/admin/invites/:id", adminAuth, (req, res) => {
+  const invites = readJSON("invites.json");
+  const idx = invites.findIndex((i) => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Invite not found" });
+  const [removed] = invites.splice(idx, 1);
+  writeJSON("invites.json", invites);
+  adminLog("invite_deleted", req.user.id, req.user.name, `Deleted invite ${removed.token}`);
+  res.json({ ok: true });
+});
+
 app.post("/api/admin/invites/:id/confirm", adminAuth, (req, res) => {
   const invites = readJSON("invites.json");
   const invite = invites.find((i) => i.id === req.params.id);
