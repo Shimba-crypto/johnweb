@@ -613,6 +613,7 @@ export default function Admin() {
 function InvitesTab({ api }: { api: any }) {
   const [invites, setInvites] = useState<any[]>([]);
   const [role, setRole] = useState("student");
+  const [plan, setPlan] = useState("free");
   const [school, setSchool] = useState("");
   const [teacherName, setTeacherName] = useState("");
   const [maxUses, setMaxUses] = useState(10);
@@ -623,7 +624,7 @@ function InvitesTab({ api }: { api: any }) {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await api("POST", "/api/admin/invites", { role, school, teacherName, maxUses });
+    const result = await api("POST", "/api/admin/invites", { role, school, teacherName, maxUses, plan });
     if (result.token) { setSchool(""); setTeacherName(""); load(); }
     else alert(result.error || "Error");
   };
@@ -632,6 +633,28 @@ function InvitesTab({ api }: { api: any }) {
     const link = `${window.location.origin}/invite/${token}`;
     if (navigator.clipboard) { try { await navigator.clipboard.writeText(link); setCopied(token); setTimeout(() => setCopied(""), 1500); } catch {} }
   };
+
+  const confirmPayment = async (id: string) => {
+    if (!confirm("Confirm this payment? This activates the teacher's account and plan.")) return;
+    const r = await api("POST", `/api/admin/invites/${id}/confirm`);
+    if (r.error) alert(r.error); else load();
+  };
+
+  const planOptions = [
+    { id: "free", label: "Free (no payment)" },
+    { id: "k10", label: "K10" },
+    { id: "k20", label: "K20" },
+    { id: "k30", label: "K30" },
+    { id: "k50", label: "K50" },
+    { id: "k100", label: "K100" },
+    { id: "k200", label: "K200 Teacher" },
+  ];
+
+  const statusBadge = (s: string) =>
+    s === "paid" ? <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">Paid ✅</span> :
+    s === "pending" ? <span className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Awaiting payment ⏳</span> :
+    s === "unpaid" ? <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">Unpaid 🔴</span> :
+    <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500">Free</span>;
 
   return (
     <div>
@@ -654,6 +677,13 @@ function InvitesTab({ api }: { api: any }) {
             </button>
           </div>
         </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Plan (price)</label>
+          <select value={plan} onChange={(e) => setPlan(e.target.value)} className="w-full p-2 border rounded-lg">
+            {planOptions.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Paid plans show the price on the invite — payment is confirmed by you before the account activates.</p>
+        </div>
         <div className="grid md:grid-cols-3 gap-3">
           <input value={school} onChange={(e) => setSchool(e.target.value)} placeholder="School (optional)" className="p-2 border rounded-lg" />
           <input value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder="Teacher name (optional)" className="p-2 border rounded-lg" />
@@ -667,16 +697,26 @@ function InvitesTab({ api }: { api: any }) {
       <div className="space-y-2">
         {invites.map((inv) => (
           <div key={inv.id} className="bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded ${inv.role === "teacher" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>{inv.role}</span>
+                {inv.plan && <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700">{inv.plan} {inv.price > 0 ? `(K${inv.price})` : ""}</span>}
                 <span className="text-xs text-gray-500">{inv.usedCount}/{inv.maxUses} used</span>
+                {inv.price > 0 && statusBadge(inv.paymentStatus)}
               </div>
+              {inv.registeredUser && <div className="text-xs text-gray-500 mt-1">Registered: {inv.registeredUser}{inv.phone ? ` · ${inv.phone}` : ""}</div>}
               <div className="text-sm text-gray-600 mt-1 truncate max-w-xs">{window.location.origin}/invite/{inv.token}</div>
             </div>
-            <button onClick={() => copy(inv.token)} className="text-sm text-blue-600 hover:underline shrink-0">
-              {copied === inv.token ? "✅ Copied" : "Copy"}
-            </button>
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              <button onClick={() => copy(inv.token)} className="text-sm text-blue-600 hover:underline">
+                {copied === inv.token ? "✅ Copied" : "Copy"}
+              </button>
+              {inv.paymentStatus === "pending" && (
+                <button onClick={() => confirmPayment(inv.id)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                  Confirm K{inv.price} Payment
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

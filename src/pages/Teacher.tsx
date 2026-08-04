@@ -40,8 +40,17 @@ export default function Teacher() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {user.planLocked && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 mb-6 flex items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold text-yellow-800">🔒 Preview mode</div>
+            <div className="text-sm text-yellow-700">Your teacher plan activates once the admin confirms your K200 payment. You can preview, but grading is limited.</div>
+          </div>
+          <a href="/profile" className="text-sm text-yellow-800 underline shrink-0">Payment details</a>
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-2">Teacher Dashboard</h1>
-      <p className="text-gray-500 mb-8">Grade student answers | {pending.length} pending</p>
+      <p className="text-gray-500 mb-8">Grade student answers | {pending.length} pending{user.planLocked ? " · Preview mode" : ""}</p>
 
       {pending.length === 0 ? (
         <div className="bg-white p-8 rounded-xl border shadow-sm text-center text-gray-500">
@@ -58,9 +67,10 @@ export default function Teacher() {
               <p className="text-sm mb-1"><span className="font-medium">Answer:</span> {a.content}</p>
               <p className="text-sm mb-3"><span className="font-medium">Model:</span> {a.question?.modelAnswer || "?"}</p>
               <div className="flex gap-2">
-                <button onClick={() => grade(a.id, true)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Correct</button>
-                <button onClick={() => grade(a.id, false)} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Incorrect</button>
+                <button onClick={() => grade(a.id, true)} disabled={user.planLocked} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">Correct</button>
+                <button onClick={() => grade(a.id, false)} disabled={user.planLocked} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">Incorrect</button>
               </div>
+              {user.planLocked && <p className="text-xs text-gray-400 mt-1">🔒 Locked until your plan is confirmed.</p>}
             </div>
           ))}
         </div>

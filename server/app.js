@@ -687,6 +687,7 @@ const PLANS = {
   k30: { price: 30, label: "K30", features: ["Everything in K20", "Teacher bot access", "Unlimited answers", "Certificate of completion"] },
   k50: { price: 50, label: "K50", features: ["Everything in K30", "Become a teacher", "Create your own bots", "API access"] },
   k100: { price: 100, label: "K100", features: ["Everything in K50", "Admin panel", "Create MOD bots", "Priority support", "Custom branding"] },
+  k200: { price: 200, label: "K200 Teacher", features: ["Teacher account", "Grade student answers", "Create quizzes", "Manage a class", "View student progress", "Everything in K100"] },
 };
 
 app.get("/api/pricing", (req, res) => {
@@ -2444,27 +2445,32 @@ export function migrateData() {
 function genToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10); }
 
 app.post("/api/admin/invites", adminAuth, (req, res) => {
-  const { role, school, teacherName, teacherId, maxUses } = req.body;
+  const { role, school, teacherName, teacherId, maxUses, plan } = req.body;
   const validRoles = ["student", "teacher"];
   const r = validRoles.includes(role) ? role : "student";
+  // plan determines the price (e.g. k200 = K200 teacher plan)
+  const chosenPlan = PLANS[plan] ? plan : (r === "teacher" ? "k200" : null);
+  const price = chosenPlan ? PLANS[chosenPlan].price : 0;
   const invites = readJSON("invites.json");
   const token = genToken();
-  const invite = { id: uuidv4(), token, role: r, school: school || "", teacherName: teacherName || "", teacherId: teacherId || "", maxUses: Math.min(parseInt(maxUses) || 1, 500), usedCount: 0, createdBy: req.user.id, createdAt: new Date().toISOString() };
+  const invite = { id: uuidv4(), token, role: r, plan: chosenPlan, price, paymentStatus: price > 0 ? "unpaid" : "none", phone: null, paymentId: null, registeredUserId: null, school: school || "", teacherName: teacherName || "", teacherId: teacherId || "", maxUses: Math.min(parseInt(maxUses) || 1, 500), usedCount: 0, createdBy: req.user.id, createdAt: new Date().toISOString() };
   invites.push(invite);
   writeJSON("invites.json", invites);
-  adminLog("invite_created", req.user.id, req.user.name, `${r} invite (${invite.maxUses} uses)`);
+  adminLog("invite_created", req.user.id, req.user.name, `${r} invite (${chosenPlan || "no plan"}, K${price})`);
   res.json(invite);
 });
 
 app.get("/api/admin/invites", adminAuth, (req, res) => {
-  res.json(readJSON("invites.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+  const invites = readJSON("invites.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const users = readJSON("users.json");
+  res.json(invites.map((inv) => ({ ...inv, registeredUser: inv.registeredUserId ? users.find((u) => u.id === inv.registeredUserId)?.name || null : null })));
 });
 
 app.get("/api/invites/:token", (req, res) => {
   const invite = readJSON("invites.json").find((i) => i.token === req.params.token);
   if (!invite) return res.status(404).json({ error: "Invite not found or expired" });
   if (invite.usedCount >= invite.maxUses) return res.status(400).json({ error: "This invite has reached its limit" });
-  res.json({ role: invite.role, school: invite.school, teacherName: invite.teacherName, usedCount: invite.usedCount, maxUses: invite.maxUses });
+  res.json({ role: invite.role, plan: invite.plan, price: invite.price, paymentStatus: invite.paymentStatus, school: invite.school, teacherName: invite.teacherName, usedCount: invite.usedCount, maxUses: invite.maxUses });
 });
 
 app.post("/api/invites/:token/register", (req, res) => {
@@ -2481,12 +2487,60 @@ app.post("/api/invites/:token/register", (req, res) => {
   let email = `${slug}@invite.johnweb.com`;
   let n = 1;
   while (users.find((u) => u.email === email)) email = `${slug}.${n++}@invite.johnweb.com`;
-  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: invite.role, tokenVersion: 1, school: invite.school || "", teacherName: invite.teacherName || "", teacherId: invite.teacherId || "", createdAt: new Date().toISOString() };
+  // For paid invites: account is created but PENDING (plan locked until admin confirms payment)
+  const requiresPayment = invite.price > 0 && invite.paymentStatus !== "paid";
+  const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: invite.role, tokenVersion: 1, school: invite.school || "", teacherName: invite.teacherName || "", teacherId: invite.teacherId || "", subscription: requiresPayment ? "pending" : (invite.plan || undefined), inviteId: invite.id, planLocked: requiresPayment, createdAt: new Date().toISOString() };
   users.push(user);
   writeJSON("users.json", users);
   invite.usedCount++;
+  invite.registeredUserId = user.id;
+  if (requiresPayment) invite.paymentStatus = invite.paymentStatus === "pending" ? "pending" : "unpaid";
   writeJSON("invites.json", invites);
-  res.json({ message: "Registered successfully!", email, user: { id: user.id, name: user.name, email: user.email, role: user.role, school: user.school, teacherName: user.teacherName } });
+  res.json({ message: requiresPayment ? "Account created — payment required to activate" : "Registered successfully!", email, requiresPayment, plan: invite.plan, price: invite.price, paymentStatus: invite.paymentStatus, user: { id: user.id, name: user.name, email: user.email, role: user.role, school: user.school, teacherName: user.teacherName } });
+});
+
+// Buyer initiates payment (enters Airtel/MTN number) for a paid invite
+app.post("/api/invites/:token/pay", (req, res) => {
+  const { phone } = req.body;
+  if (!phone || !/^\d{9,10}$/.test(String(phone).replace(/\s+/g, ""))) return res.status(400).json({ error: "Enter a valid Airtel/MTN phone number (e.g. 0971234567)" });
+  const invites = readJSON("invites.json");
+  const invite = invites.find((i) => i.token === req.params.token);
+  if (!invite) return res.status(404).json({ error: "Invite not found" });
+  if (!invite.price) return res.status(400).json({ error: "This invite is free — no payment needed" });
+  invite.phone = String(phone).replace(/\s+/g, "");
+  invite.paymentStatus = "pending";
+  invite.paymentId = uuidv4();
+  writeJSON("invites.json", invites);
+  const admins = readJSON("users.json").filter((u) => ["super_admin", "omni_super", "admin"].includes(u.role));
+  admins.forEach((a) => addNotification(a.id, "invite_payment", "Invite Payment Requested", `K${invite.price} payment from ${invite.phone} — confirm in Admin → Invites`, "/admin"));
+  res.json({ status: "pending", message: `Payment request of K${invite.price} sent. Pay ${invite.phone} and the admin will activate your account.` });
+});
+
+// Buyer checks if payment has been confirmed
+app.get("/api/invites/:token/status", (req, res) => {
+  const invite = readJSON("invites.json").find((i) => i.token === req.params.token);
+  if (!invite) return res.status(404).json({ error: "Invite not found" });
+  res.json({ paymentStatus: invite.paymentStatus, plan: invite.plan, price: invite.price, confirmed: invite.paymentStatus === "paid" });
+});
+
+// Admin confirms payment → activates the account + plan
+app.post("/api/admin/invites/:id/confirm", adminAuth, (req, res) => {
+  const invites = readJSON("invites.json");
+  const invite = invites.find((i) => i.id === req.params.id);
+  if (!invite) return res.status(404).json({ error: "Invite not found" });
+  if (!invite.registeredUserId) return res.status(400).json({ error: "No one has registered via this invite yet" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === invite.registeredUserId);
+  if (idx === -1) return res.status(404).json({ error: "Registered user not found" });
+  users[idx].subscription = invite.plan || "free";
+  users[idx].planLocked = false;
+  writeJSON("users.json", users);
+  invite.paymentStatus = "paid";
+  invite.confirmedAt = new Date().toISOString();
+  writeJSON("invites.json", invites);
+  adminLog("invite_paid", req.user.id, req.user.name, `Confirmed K${invite.price} for ${invite.registeredUserId}`);
+  addNotification(invite.registeredUserId, "invite_activated", "Your Account is Active", `Your ${invite.plan} plan is now active!`, "/profile");
+  res.json({ ok: true, plan: invite.plan });
 });
 
 // ─── ACCESS CODES (sell codes, students redeem) ─────────────
