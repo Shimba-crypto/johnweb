@@ -2663,8 +2663,10 @@ app.post("/api/admin/invites/:id/confirm", adminAuth, (req, res) => {
 
 // ─── REFERRAL PROGRAM ────────────────────────────────────
 app.get("/api/referral/status", auth, (req, res) => {
+  if (req.user.role !== "student") return res.json({ allowed: false, message: "Referrals are for student accounts only." });
   const referrals = readJSON("referrals.json").filter((r) => r.referrerId === req.user.id);
   res.json({
+    allowed: true,
     link: `${req.protocol}://${req.get("host")}/register?ref=${req.user.id}`,
     count: referrals.length,
     program: "Invite 2+ friends — each gets a free week of Student Plus (K50 plan).",

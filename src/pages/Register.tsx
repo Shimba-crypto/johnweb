@@ -11,6 +11,9 @@ export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const ref = searchParams.get("ref") || "";
+  const [loggedInUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +46,11 @@ export default function Register() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-16">
+      {loggedInUser && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+          <p className="text-sm text-amber-800">⚠️ You're signed in as <strong>{loggedInUser.name}</strong>. Creating a new account will <strong>log you out</strong> of this one.</p>
+        </div>
+      )}
       {ref && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-center">
           <div className="text-2xl mb-1">🎁</div>
