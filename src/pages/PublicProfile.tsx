@@ -28,8 +28,12 @@ export default function PublicProfile() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="bg-white p-6 rounded-xl border shadow-sm mb-6">
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{profile.name}</h1>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-green-600 text-white flex items-center justify-center text-2xl font-bold overflow-hidden shrink-0">
+              {profile.avatar ? <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" /> : profile.name?.[0]?.toUpperCase()}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{profile.name}</h1>
             <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
               <span className={`px-2 py-0.5 rounded text-xs ${profile.role === "super_admin" ? "bg-purple-100 text-purple-700" : profile.role === "teacher" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>{roleLabels[profile.role] || profile.role}</span>
               <span>{profile.avgRating > 0 ? `${profile.avgRating} ★ (${profile.ratingCount})` : "No ratings yet"}</span>
@@ -40,6 +44,7 @@ export default function PublicProfile() {
                 {profile.badges.map((b: string, i: number) => <span key={i} className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{b}</span>)}
               </div>
             )}
+            </div>
           </div>
           {myUser && myUser.id !== profile.id && <FollowButton targetId={profile.id} />}
         </div>
