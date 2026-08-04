@@ -317,7 +317,7 @@ app.post("/api/auth/login", (req, res) => {
   }
   if (emailKey) loginAttempts.delete(emailKey);
   const tokens = issueTokens(user);
-  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
 app.post("/api/auth/refresh", (req, res) => {
@@ -336,7 +336,7 @@ app.post("/api/auth/refresh", (req, res) => {
   tokens.splice(idx, 1); // rotate: revoke old
   writeJSON("refresh-tokens.json", tokens);
   const newTokens = issueTokens(user);
-  res.json({ token: newTokens.accessToken, refreshToken: newTokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ token: newTokens.accessToken, refreshToken: newTokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
 app.post("/api/auth/logout-all", (req, res) => {
@@ -361,7 +361,7 @@ app.get("/api/auth/me", (req, res) => {
   const users = readJSON("users.json");
   const user = users.find((u) => u.id === payload.userId);
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+  res.json({ id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null });
 });
 
 app.get("/api/subjects", (req, res) => {
@@ -3013,7 +3013,7 @@ app.post("/api/auth/google", async (req, res) => {
     writeJSON("users.json", users);
   }
   const tokens = issueTokens(user);
-  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
 // ─── #61 AVATAR UPLOAD ─────────────────────────────────────

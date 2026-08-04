@@ -82,7 +82,14 @@ export default function Profile() {
         </div>
         <div className="flex items-center gap-3 mt-2 text-xs">
           <span className={`px-2 py-0.5 rounded ${user.role === "super_admin" ? "bg-purple-100 text-purple-700" : user.role === "admin" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>{user.role}</span>
-          <span className="text-gray-400">{(user.subscription || "free")}</span>
+          {user.subscription && user.subscription !== "free" ? (
+            <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">
+              {({ k10: "K10", k20: "K20", k30: "K30", k50: "Student Plus", k100: "K100" } as any)[user.subscription] || user.subscription}
+              {user.subscriptionExpiresAt && <span className="opacity-70 ml-1">· expires {new Date(user.subscriptionExpiresAt).toLocaleDateString()}</span>}
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-500">Free plan</span>
+          )}
         </div>
         <div className="flex gap-4 mt-3 text-sm">
           <span className="text-gray-500"><strong className="text-gray-800">{followers.length}</strong> followers</span>
