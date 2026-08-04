@@ -1,13 +1,90 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (parent: HTMLElement, options: any) => void;
+          prompt: () => void;
+          cancel: () => void;
+        };
+      };
+    };
+  }
+}
 
 export default function Login() {
   usePageTitle("Login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [googleClientId, setGoogleClientId] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch("/api/meta")
+      .then((r) => r.json())
+      .then((d) => { if (d.googleClientId) setGoogleClientId(d.googleClientId); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!googleClientId) return;
+    let cancelled = false;
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => {
+      if (cancelled || !window.google?.accounts) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: any) => {
+          if (!response?.credential) { setError("Google sign-in failed. Try again."); return; }
+          setGoogleLoading(true);
+          try {
+            const res = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken: response.credential }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setError(data.error || "Google sign-in failed"); setGoogleLoading(false); return; }
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("refreshToken", data.refreshToken || "");
+            localStorage.setItem("user", JSON.stringify(data.user));
+            try {
+              const sessions = JSON.parse(localStorage.getItem("jwSessions") || "[]");
+              const entry = { token: data.token, user: data.user };
+              const idx = sessions.findIndex((s: any) => s.user.id === data.user.id);
+              if (idx >= 0) sessions[idx] = entry; else sessions.push(entry);
+              localStorage.setItem("jwSessions", JSON.stringify(sessions.slice(-5)));
+            } catch {}
+            navigate("/browse");
+          } catch {
+            setError("Could not reach the server. Check your connection.");
+            setGoogleLoading(false);
+          }
+        },
+      });
+      if (googleBtnRef.current) {
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: "outline",
+          size: "large",
+          shape: "rectangular",
+          width: 400,
+          text: "continue_with",
+        });
+      }
+    };
+    document.body.appendChild(script);
+    return () => { cancelled = true; };
+  }, [googleClientId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,18 +134,22 @@ export default function Login() {
           <span className="text-gray-500">Don&apos;t have an account? <Link to="/register" className="text-green-600 hover:underline">Sign up</Link></span>
         </div>
       </form>
-      <div className="relative my-4 text-center">
-        <span className="bg-gray-100 px-3 py-1 text-xs text-gray-500 rounded-full">or</span>
-      </div>
-      <button
-        onClick={() => {
-          setError("Google sign-in is temporarily unavailable. Please log in with your email and password.");
-        }}
-        className="w-full bg-white border border-gray-300 py-2 rounded-lg hover:bg-gray-50 font-medium text-gray-700 flex items-center justify-center gap-2"
-      >
-        <span className="text-lg">G</span> Continue with Google
-      </button>
-      <p className="text-xs text-gray-400 text-center mt-2">Uses your email to create or log into your account.</p>
+      {googleClientId && (
+        <>
+          <div className="relative my-4 text-center">
+            <span className="bg-gray-100 px-3 py-1 text-xs text-gray-500 rounded-full">or</span>
+          </div>
+          <div className="flex justify-center">
+            <div ref={googleBtnRef} className="google-signin-btn" />
+          </div>
+          {googleLoading && <p className="text-xs text-gray-400 text-center mt-2">Signing you in…</p>}
+        </>
+      )}
+      {!googleClientId && (
+        <p className="text-xs text-gray-400 text-center mt-4">
+          Google sign-in is not configured yet. Use your email and password above.
+        </p>
+      )}
     </div>
   );
 }

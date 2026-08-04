@@ -3288,7 +3288,8 @@ async function verifyGoogleIdToken(idToken) {
     if (!alg) return null;
     const ok = crypto.verify(alg, data, keyObj, signature);
     if (!ok) return null;
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const settings = readJSON("settings.json");
+    const clientId = process.env.GOOGLE_CLIENT_ID || (settings && settings.googleClientId) || "";
     if (clientId && String(payload.aud) !== clientId) return null;
     return { email: payload.email, name: payload.name || null, sub: payload.sub || null };
   } catch { return null; }
@@ -3508,6 +3509,7 @@ app.get("/api/meta", (req, res) => {
   res.json({
     maintenance: !!settings.maintenance,
     announcement: settings.announcement ? { text: settings.announcement.text || "", enabled: settings.announcement.enabled !== false } : { text: "", enabled: false },
+    googleClientId: settings.googleClientId || process.env.GOOGLE_CLIENT_ID || "",
   });
 });
 
