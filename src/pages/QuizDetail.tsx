@@ -9,6 +9,7 @@ export default function QuizDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [explains, setExplains] = useState<Record<string, { loading: boolean; text: string }>>({});
+  const [copyMsg, setCopyMsg] = useState("");
   const user = localStorage.getItem("user");
 
   useEffect(() => {
@@ -89,13 +90,27 @@ export default function QuizDetail() {
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => {
-              const text = `I scored ${result.score}/${result.total} (${result.percentage}%) on "${result.quizTitle}" on JohnWeb! 🇿🇲 Try it: https://johnweb-qncu.onrender.com`;
+              const link = `${window.location.origin}/view/unknown/result/${result.id}`;
+              if (navigator.clipboard) navigator.clipboard.writeText(link);
+              const text = `I scored ${result.score}/${result.total} (${result.percentage}%) on "${result.quizTitle}" on JohnWeb! 🇿🇲 View my result: ${link}`;
               window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
             }}
             className="bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-600"
           >
             📲 Share on WhatsApp
           </button>
+          <button
+            onClick={() => {
+              const link = `${window.location.origin}/view/unknown/result/${result.id}`;
+              if (navigator.clipboard) { navigator.clipboard.writeText(link); }
+              setCopyMsg("✅ Result link copied!");
+              setTimeout(() => setCopyMsg(""), 2000);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+          >
+            🔗 Share Result Link
+          </button>
+          {copyMsg && <p className="text-sm text-green-600 w-full text-center">{copyMsg}</p>}
           <Link to="/quizzes" className="text-green-600 hover:underline">Back to Quizzes</Link>
         </div>
       </div>
