@@ -175,20 +175,46 @@ export default function Admin() {
           <p className="text-sm text-yellow-800">🔒 <strong>Admin panel locked.</strong> Enter your admin secret in <Link to="/settings" className="underline font-medium">Settings → Admin Panel Access</Link> to unlock it in this browser.</p>
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-gray-500">Welcome, {user.name} · {new Date().toLocaleDateString("en-ZM", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+      <div className="bg-gradient-to-r from-gray-900 via-green-900 to-gray-900 text-white rounded-2xl p-6 mb-6 relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-48 h-48 bg-green-500/20 rounded-full blur-2xl" />
+        <div className="absolute -left-10 -bottom-16 w-56 h-56 bg-emerald-500/20 rounded-full blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold tracking-widest text-green-300 uppercase">JohnWeb · Control Center</div>
+            <h1 className="text-3xl font-bold mt-1">Admin Dashboard</h1>
+            <p className="text-green-100/70 text-sm mt-1">Welcome, {user.name} · {new Date().toLocaleDateString("en-ZM", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-sm">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="opacity-90">Live</span>
+            </div>
+            <Link to="/" className="text-sm bg-white/10 hover:bg-white/20 rounded-lg px-4 py-2 transition">Back to site →</Link>
+          </div>
         </div>
-        <Link to="/" className="text-sm text-gray-500 hover:text-gray-700">Back to site →</Link>
+        <div className="relative grid grid-cols-3 md:grid-cols-6 gap-3 mt-6">
+          {[
+            { label: "Subjects", value: stats?.subjects || 0, color: "text-green-300" },
+            { label: "Papers", value: totalPapers, color: "text-blue-300" },
+            { label: "Questions", value: totalQuestions, color: "text-orange-300" },
+            { label: "Users", value: totalUsers, color: "text-purple-300" },
+            { label: "Answers", value: stats?.answers || 0, color: "text-cyan-300" },
+            { label: "Pending", value: pendingAnswers, color: "text-yellow-300" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex gap-1 mb-6 border-b overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setShowForm(false); setEditing(null); }}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap ${tab === t.key ? "bg-white border border-b-white -mb-px text-green-700" : "text-gray-500 hover:text-gray-700"}`}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition ${tab === t.key ? "bg-green-600 text-white shadow-sm shadow-green-600/30" : "bg-white border border-gray-200 text-gray-600 hover:border-green-300 hover:text-green-700"}`}
           >
             {t.label}
             {t.badge && <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{t.badge}</span>}
@@ -199,51 +225,51 @@ export default function Admin() {
       {tab === "overview" && (
         <div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-5 rounded-xl border shadow-sm">
+            <div className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-500">Subjects</div>
                   <div className="text-3xl font-bold text-green-600">{stats?.subjects || 0}</div>
                 </div>
-                <div className="text-3xl opacity-20">📚</div>
+                <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center text-xl">📚</div>
               </div>
               <div className="mt-2 text-xs text-gray-400">ECZ subjects</div>
             </div>
-            <div className="bg-white p-5 rounded-xl border shadow-sm">
+            <div className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-500">Papers</div>
                   <div className="text-3xl font-bold text-blue-600">{stats?.papers || 0}</div>
                 </div>
-                <div className="text-3xl opacity-20">📄</div>
+                <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center text-xl">📄</div>
               </div>
               <div className="mt-2 text-xs text-gray-400">{stats?.papers > 0 ? `Grades 9 · 10 · 12` : "Past exam papers"}</div>
             </div>
-            <div className="bg-white p-5 rounded-xl border shadow-sm">
+            <div className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-500">Questions</div>
                   <div className="text-3xl font-bold text-orange-600">{stats?.questions || 0}</div>
                 </div>
-                <div className="text-3xl opacity-20">❓</div>
+                <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center text-xl">❓</div>
               </div>
               <div className="mt-2 text-xs text-gray-400">Across all papers</div>
             </div>
-            <div className="bg-white p-5 rounded-xl border shadow-sm">
+            <div className="bg-white p-5 rounded-xl border shadow-sm hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-500">Users</div>
                   <div className="text-3xl font-bold text-purple-600">{stats?.users || 0}</div>
                 </div>
-                <div className="text-3xl opacity-20">👤</div>
+                <div className="w-11 h-11 rounded-xl bg-purple-100 flex items-center justify-center text-xl">👤</div>
               </div>
               <div className="mt-2 text-xs text-gray-400">{stats?.pending || 0} pending reviews</div>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl border shadow-sm">
-              <h3 className="font-semibold mb-4">Papers by Grade</h3>
+            <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><span className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center text-xs">📊</span> Papers by Grade</h3>
               {stats?.byGrade ? (
                 <div className="space-y-3">
                   {["9", "10", "12"].map((g) => {
@@ -252,11 +278,11 @@ export default function Admin() {
                     return (
                       <div key={g}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span>Grade {g}</span>
-                          <span className="text-gray-500">{count}</span>
+                          <span className="text-gray-600">Grade {g}</span>
+                          <span className="text-gray-500 font-medium">{count}</span>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${max ? (count / max) * 100 : 0}%` }} />
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all" style={{ width: `${max ? (count / max) * 100 : 0}%` }} />
                         </div>
                       </div>
                     );
@@ -264,8 +290,8 @@ export default function Admin() {
                 </div>
               ) : <p className="text-gray-400 text-sm">Loading...</p>}
             </div>
-            <div className="bg-white p-6 rounded-xl border shadow-sm">
-              <h3 className="font-semibold mb-4">Activity Overview</h3>
+            <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><span className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-xs">⚡</span> Activity Overview</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Answers submitted</span>
@@ -292,7 +318,7 @@ export default function Admin() {
                       const maxCount = Math.max(...stats.dailyActivity.map((x: any) => x.count), 1);
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center">
-                          <div className="w-full bg-green-200 rounded-t" style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count > 0 ? 4 : 0 }} title={`${d.date}: ${d.count}`} />
+                          <div className="w-full bg-gradient-to-t from-green-500 to-emerald-300 rounded-t" style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count > 0 ? 4 : 0 }} title={`${d.date}: ${d.count}`} />
                         </div>
                       );
                     })}
@@ -303,24 +329,21 @@ export default function Admin() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-green-600 to-green-500 text-white rounded-xl p-5">
-              <h4 className="font-semibold mb-1">Quick Actions</h4>
-              <div className="space-y-2 mt-3">
-                <button onClick={() => setTab("subjects")} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Manage Subjects</button>
-                <button onClick={() => setTab("answers")} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">
-                  Review Answers {stats?.pending > 0 && `(${stats.pending})`}
-                </button>
-                <button onClick={() => setTab("papers")} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Add Paper</button>
-                <button onClick={createBot} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Create Bot</button>
-                <button onClick={createModBot} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Create MOD Bot</button>
-                <a href="/admin/post-news" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Post News</a>
-                <button onClick={downloadBackup} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">💾 Download Backup</button>
-                <button onClick={downloadFullDb} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🗄️ Download Full DB</button>
-                <button onClick={generateCodes} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🎫 Generate Access Codes</button>
-                <a href="/admin/edit-pp" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">✏️ Edit Paper Questions</a>
-                <button onClick={generateInvite} className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">🔗 Generate Invite Link</button>
-                <a href="/admin/bulk-import" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">📥 Bulk Import Questions</a>
-                <a href="/settings" className="block w-full text-left text-sm bg-white/20 rounded-lg px-3 py-2 hover:bg-white/30">Settings</a>
+            <div className="bg-gradient-to-br from-gray-900 via-green-900 to-emerald-800 text-white rounded-xl p-5 shadow-lg shadow-green-900/20">
+              <h4 className="font-semibold mb-1 flex items-center gap-2">⚡ Quick Actions</h4>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <button onClick={() => setTab("subjects")} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">📚 Subjects</button>
+                <button onClick={() => setTab("papers")} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">📄 Papers</button>
+                <button onClick={() => setTab("answers")} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">✅ Review {stats?.pending > 0 && `(${stats.pending})`}</button>
+                <button onClick={createBot} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">🤖 Bot</button>
+                <button onClick={createModBot} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">🛡️ MOD Bot</button>
+                <button onClick={generateCodes} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">🎫 Codes</button>
+                <button onClick={generateInvite} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">🔗 Invite</button>
+                <a href="/admin/bulk-import" className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">📥 Import</a>
+                <a href="/admin/post-news" className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">📰 News</a>
+                <button onClick={downloadBackup} className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">💾 Backup</button>
+                <a href="/settings" className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">⚙️ Settings</a>
+                <a href="/admin/edit-pp" className="text-left text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2.5 transition">✏️ Edit Paper</a>
               </div>
             </div>
             <div className="bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-xl p-5">
@@ -351,21 +374,24 @@ export default function Admin() {
       {tab === "subjects" && (
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">{subjects.length} Subjects</h2>
-            <button onClick={() => { setEditing(null); setShowForm(!showForm); }} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+            <h2 className="text-xl font-semibold flex items-center gap-2">📚 <span>{subjects.length} Subjects</span></h2>
+            <button onClick={() => { setEditing(null); setShowForm(!showForm); }} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 shadow-sm shadow-green-600/20 transition">
               {showForm ? "Cancel" : "+ Add Subject"}
             </button>
           </div>
           {showForm && <SubjectForm initial={editing} onSave={(d) => save("subjects", d)} onCancel={() => { setShowForm(false); setEditing(null); }} />}
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             {subjects.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-gray-50">
-                <div>
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-gray-400 ml-2">({s.code})</span>
-                  <span className="text-gray-400 ml-2 text-sm">{(s.papers || []).length} papers</span>
+              <div key={s.id} className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-gray-50 transition">
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-lg bg-green-50 text-green-700 flex items-center justify-center font-bold">{s.name[0]}</span>
+                  <div>
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-gray-400 ml-2 text-xs">({s.code})</span>
+                    <div className="text-xs text-gray-400">{(s.papers || []).length} papers</div>
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button onClick={() => { setEditing(s); setShowForm(true); }} className="text-blue-600 text-sm hover:underline">Edit</button>
                   <button onClick={() => remove("subjects", s.id)} className="text-red-600 text-sm hover:underline">Delete</button>
                 </div>
