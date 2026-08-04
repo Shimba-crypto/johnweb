@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function NotFound() {
+  usePageTitle("Not Found");
   return (
     <div className="max-w-md mx-auto px-4 py-20 text-center">
       <div className="text-7xl mb-4 font-bold text-green-600">404</div>

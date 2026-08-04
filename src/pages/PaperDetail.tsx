@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 interface Question {
   id: string;
@@ -21,6 +22,7 @@ interface Paper {
 }
 
 export default function PaperDetail() {
+  usePageTitle("Paper");
   const { id } = useParams<{ id: string }>();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [token, setToken] = useState<string | null>(null);

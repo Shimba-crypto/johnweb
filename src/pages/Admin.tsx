@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "analytics" | "users";
 
 export default function Admin() {
+  usePageTitle("Admin Panel");
   const [user, setUser] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("overview");
   const [subjects, setSubjects] = useState<any[]>([]);

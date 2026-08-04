@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Home() {
+  usePageTitle("Home");
   const [user, setUser] = useState<any>(null);
   const [answers, setAnswers] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);

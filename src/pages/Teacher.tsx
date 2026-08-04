@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Teacher() {
+  usePageTitle("Teacher Dashboard");
   const [user, setUser] = useState<any>(null);
   const [pending, setPending] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);

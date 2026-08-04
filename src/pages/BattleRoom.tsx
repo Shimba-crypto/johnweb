@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function BattleRoom() {
+  usePageTitle("Quiz Battle");
   const { id } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const [questions, setQuestions] = useState<any[]>([]);

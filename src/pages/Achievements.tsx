@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Achievements() {
+  usePageTitle("Achievements");
   const [data, setData] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();

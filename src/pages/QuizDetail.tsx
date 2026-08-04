@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function QuizDetail() {
+  usePageTitle("Quiz");
   const { id } = useParams<{ id: string }>();
   const [quiz, setQuiz] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});

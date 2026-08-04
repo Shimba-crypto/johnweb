@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import FollowButton from "../components/FollowButton";
 import StarRating from "../components/StarRating";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function PublicProfile() {
+  usePageTitle("Profile");
   const { id } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [myUser, setMyUser] = useState<any>(null);

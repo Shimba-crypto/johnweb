@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Bookmarks() {
+  usePageTitle("Saved Questions");
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const navigate = useNavigate();
 

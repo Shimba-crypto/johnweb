@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function ApiDocs() {
+  usePageTitle("API Docs");
   const [lang, setLang] = useState<"curl" | "python">("python");
 
   const block = (title: string, code: string) => (

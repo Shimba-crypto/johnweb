@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function BulkImport() {
+  usePageTitle("Bulk Import");
   const [user, setUser] = useState<any>(null);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [paperId, setPaperId] = useState("");

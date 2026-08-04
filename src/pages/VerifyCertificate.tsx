@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function VerifyCertificate() {
+  usePageTitle("Verify Certificate");
   const { id } = useParams<{ id: string }>();
   const [cert, setCert] = useState<any>(null);
   const [error, setError] = useState("");

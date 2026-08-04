@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Register() {
+  usePageTitle("Sign Up");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

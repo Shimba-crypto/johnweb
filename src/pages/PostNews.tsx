@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { renderMarkdown } from "../lib/markdown";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function PostNews() {
+  usePageTitle("Post News");
   const [user, setUser] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("general");

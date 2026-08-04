@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function Settings() {
+  usePageTitle("Settings");
   const [user, setUser] = useState<any>(null);
   const [tab, setTab] = useState<"profile" | "security" | "admin">("profile");
   const [name, setName] = useState("");

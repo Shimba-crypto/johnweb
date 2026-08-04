@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageTitle } from "../lib/usePageTitle";
 
 export default function QuizAnalytics() {
+  usePageTitle("Quiz Analytics");
   const [user, setUser] = useState<any>(null);
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [selected, setSelected] = useState("");
