@@ -81,13 +81,14 @@ export default function InviteJoin() {
     }
   };
 
-  const pay = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const MERCHANT_NUMBER = "0975876361";
+
+  const pay = async () => {
     setPayError(""); setPayMsg("");
     setStep("paying");
     const res = await fetch(`/api/invites/${token}/pay`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone: phone || MERCHANT_NUMBER }),
     });
     const data = await res.json();
     setStep("waiting");
@@ -147,17 +148,40 @@ export default function InviteJoin() {
       )}
 
       {step === "phone" && (
-        <form onSubmit={pay} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+        <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
           <h3 className="font-semibold text-lg text-center">📱 Pay K{invite.price} via Mobile Money</h3>
-          <p className="text-sm text-gray-500 text-center">Enter your Airtel or MTN number. We'll request K{invite.price} — approve it on your phone, then the admin activates your account.</p>
+          <p className="text-sm text-gray-500 text-center">Send K{invite.price} using USSD, then confirm below.</p>
+
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div>
+              <div className="font-semibold text-sm text-gray-800">🏦 MTN Mobile Money</div>
+              <ol className="text-sm text-gray-600 list-decimal pl-5 mt-1 space-y-0.5">
+                <li>Dial <strong>*776#</strong></li>
+                <li>Choose <strong>Pay Merchant</strong></li>
+                <li>Enter merchant number <strong>0975876361</strong></li>
+                <li>Enter amount <strong>K{invite.price}</strong> and confirm</li>
+              </ol>
+            </div>
+            <div>
+              <div className="font-semibold text-sm text-gray-800">🏦 Airtel Money</div>
+              <ol className="text-sm text-gray-600 list-decimal pl-5 mt-1 space-y-0.5">
+                <li>Dial <strong>*210#</strong></li>
+                <li>Choose <strong>Pay Merchant</strong></li>
+                <li>Enter merchant number <strong>0975876361</strong></li>
+                <li>Enter amount <strong>K{invite.price}</strong> and confirm</li>
+              </ol>
+            </div>
+          </div>
+
           {payError && <p className="text-red-600 text-sm">{payError}</p>}
           <div>
-            <label className="block text-sm font-medium mb-1">Airtel/MTN Phone Number</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0971234567" className="w-full p-2 border rounded-lg text-center text-lg" required />
+            <label className="block text-sm font-medium mb-1">Your phone number (optional, for reference)</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0961234567" className="w-full p-2 border rounded-lg text-center text-lg" />
           </div>
-          <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-medium">Pay K{invite.price}</button>
+          <button onClick={pay} className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-medium">✅ I've Paid K{invite.price}</button>
+          <p className="text-xs text-gray-400 text-center">After paying, tap the button. The admin will confirm and activate your account.</p>
           <button type="button" onClick={() => setStep("form")} className="w-full text-sm text-gray-500 hover:text-gray-700">← Back</button>
-        </form>
+        </div>
       )}
 
       {step === "paying" && (

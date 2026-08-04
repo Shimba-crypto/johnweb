@@ -50,6 +50,7 @@ import EditPaper from "./pages/EditPaper";
 import ViewPaper from "./pages/ViewPaper";
 import ViewQA from "./pages/ViewQA";
 import ViewResult from "./pages/ViewResult";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -101,6 +102,7 @@ export default function App() {
         <Route path="/view/unknown/paper/:id" element={<ViewPaper />} />
         <Route path="/view/unknown/q-and-a" element={<ViewQA />} />
         <Route path="/view/unknown/result/:id" element={<ViewResult />} />
+        <Route path="*" element={<NotFound />} />
         <Route path="/join/primarysteps" element={<JoinSchool />} />
         <Route path="/battles" element={<Battles />} />
         <Route path="/battle/:id" element={<BattleRoom />} />

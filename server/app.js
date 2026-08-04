@@ -2611,18 +2611,19 @@ app.post("/api/invites/:token/register", (req, res) => {
 // Buyer initiates payment (enters Airtel/MTN number) for a paid invite
 app.post("/api/invites/:token/pay", (req, res) => {
   const { phone } = req.body;
-  if (!phone || !/^\d{9,10}$/.test(String(phone).replace(/\s+/g, ""))) return res.status(400).json({ error: "Enter a valid Airtel/MTN phone number (e.g. 0971234567)" });
+  const cleanPhone = String(phone || "").replace(/\s+/g, "");
+  if (cleanPhone && !/^\d{9,10}$/.test(cleanPhone)) return res.status(400).json({ error: "Enter a valid phone number (e.g. 0971234567)" });
   const invites = readJSON("invites.json");
   const invite = invites.find((i) => i.token === req.params.token);
   if (!invite) return res.status(404).json({ error: "Invite not found" });
   if (!invite.price) return res.status(400).json({ error: "This invite is free — no payment needed" });
-  invite.phone = String(phone).replace(/\s+/g, "");
+  invite.phone = cleanPhone || null;
   invite.paymentStatus = "pending";
   invite.paymentId = uuidv4();
   writeJSON("invites.json", invites);
   const admins = readJSON("users.json").filter((u) => ["super_admin", "omni_super", "admin"].includes(u.role));
-  admins.forEach((a) => addNotification(a.id, "invite_payment", "Invite Payment Requested", `K${invite.price} payment from ${invite.phone} — confirm in Admin → Invites`, "/admin"));
-  res.json({ status: "pending", message: `Payment request of K${invite.price} sent. Pay ${invite.phone} and the admin will activate your account.` });
+  admins.forEach((a) => addNotification(a.id, "invite_payment", "Invite Payment Requested", `K${invite.price} payment${cleanPhone ? ` from ${cleanPhone}` : ""} — confirm in Admin → Invites`, "/admin"));
+  res.json({ status: "pending", message: "Payment marked as sent. The admin will confirm and activate your account." });
 });
 
 // Buyer checks if payment has been confirmed
