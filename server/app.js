@@ -695,13 +695,45 @@ app.get("/api/pricing", (req, res) => {
   res.json(Object.entries(PLANS).map(([id, plan]) => ({ id, ...plan })));
 });
 
+// Set a user's subscription (30-day period) and clear the expiry-notice flag
+function setSubscription(user, plan) {
+  user.subscription = plan;
+  if (plan && plan !== "free") {
+    user.subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    user.expiryNotified = false;
+  } else {
+    user.subscriptionExpiresAt = null;
+    user.expiryNotified = false;
+  }
+}
+
+// Notify users whose subscription is expiring (or has expired)
+export function checkSubscriptions() {
+  const users = readJSON("users.json");
+  let changed = false;
+  users.forEach((u) => {
+    if (!u.subscription || u.subscription === "free" || !u.subscriptionExpiresAt) return;
+    const daysLeft = Math.ceil((new Date(u.subscriptionExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) {
+      u.subscription = "free";
+      addNotification(u.id, "subscription_expired", "Subscription Expired", "Your premium plan has expired. Renew to keep premium features.", "/pricing");
+      changed = true;
+    } else if (daysLeft <= 3 && !u.expiryNotified) {
+      addNotification(u.id, "subscription_expiring", "Subscription Expiring", `Your ${u.subscription} plan expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}. Renew now.`, "/pricing");
+      u.expiryNotified = true;
+      changed = true;
+    }
+  });
+  if (changed) writeJSON("users.json", users);
+}
+
 app.put("/api/admin/users/:id/subscription", adminAuth, (req, res) => {
   const { subscription } = req.body;
   if (!PLANS[subscription]) return res.status(400).json({ error: "Invalid plan" });
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "Not found" });
-  users[idx].subscription = subscription;
+  setSubscription(users[idx], subscription);
   writeJSON("users.json", users);
   res.json({ id: users[idx].id, name: users[idx].name, subscription: users[idx].subscription });
 });
@@ -1824,7 +1856,7 @@ app.post("/api/admin/payments/:id/confirm", adminAuth, (req, res) => {
   writeJSON("payments.json", payments);
   const users = readJSON("users.json");
   const uidx = users.findIndex((u) => u.id === payments[idx].userId);
-  if (uidx !== -1) { users[uidx].subscription = payments[idx].plan; writeJSON("users.json", users); }
+  if (uidx !== -1) { setSubscription(users[uidx], payments[idx].plan); writeJSON("users.json", users); }
   addNotification(payments[idx].userId, "payment_complete", "Subscription Activated", `Your ${payments[idx].plan} plan is now active!`, "/profile");
   adminLog("payment_confirmed", req.user.id, req.user.name, `${payments[idx].plan} for ${payments[idx].userId}`);
   res.json(payments[idx]);
@@ -2555,7 +2587,7 @@ app.post("/api/admin/invites/:id/confirm", adminAuth, (req, res) => {
   const users = readJSON("users.json");
   const idx = users.findIndex((u) => u.id === invite.registeredUserId);
   if (idx === -1) return res.status(404).json({ error: "Registered user not found" });
-  users[idx].subscription = invite.plan || "free";
+  setSubscription(users[idx], invite.plan || "free");
   users[idx].planLocked = false;
   writeJSON("users.json", users);
   invite.paymentStatus = "paid";
@@ -2611,7 +2643,7 @@ app.post("/api/codes/redeem", (req, res) => {
   if (idx === -1) return res.status(404).json({ error: "User not found" });
   rec.status = "used"; rec.usedBy = userId; rec.usedAt = new Date().toISOString();
   writeJSON("codes.json", codes);
-  users[idx].subscription = rec.plan;
+  setSubscription(users[idx], rec.plan);
   writeJSON("users.json", users);
   addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
   res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan });

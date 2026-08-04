@@ -81,7 +81,7 @@ export default function Layout() {
   })();
 
   const linkCls = (path: string) =>
-    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${location.pathname === path ? "bg-green-600 text-white font-medium" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`;
+    `sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${location.pathname === path ? "bg-green-600 text-white font-medium" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`;
 
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{children}</div>
@@ -190,7 +190,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 flex-col">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-40 flex-col animate-slide-in-left">
         {sidebar}
       </aside>
 
@@ -228,7 +228,9 @@ export default function Layout() {
               <Link to="/browse" className="underline font-medium">Practice now →</Link>
             </div>
           )}
-          <Outlet />
+          <div key={location.pathname} className="animate-page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

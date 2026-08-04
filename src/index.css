@@ -57,6 +57,41 @@ details > *:not(summary) > * {
 .animate-slide-in-left { animation: slide-in-left 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
 .animate-fade-in { animation: fade-in 0.25s ease; }
 
+/* Page transition (fade + slight rise) */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-page-enter { animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Cards: lift + shadow on hover (desktop only, keep cards calm on touch) */
+@media (hover: hover) {
+  [class~="rounded-xl"][class*="shadow-sm"] {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  [class~="rounded-xl"][class*="shadow-sm"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -8px rgba(0,0,0,0.12), 0 6px 12px -6px rgba(0,0,0,0.08);
+  }
+  [data-theme="dark"] [class~="rounded-xl"][class*="shadow-sm"]:hover {
+    box-shadow: 0 12px 28px -8px rgba(0,0,0,0.6);
+  }
+}
+
+/* Sidebar nav links: subtle slide highlight on hover */
+.sidebar-link { position: relative; }
+.sidebar-link::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px; height: 60%;
+  background: #16a34a;
+  border-radius: 0 3px 3px 0;
+  transition: transform 0.2s ease;
+}
+.sidebar-link:hover::before { transform: translateY(-50%) scaleY(1); }
+
 
 
 [data-theme="dark"] {
