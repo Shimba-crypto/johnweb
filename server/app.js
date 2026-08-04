@@ -219,7 +219,7 @@ function authUserId(req) {
 }
 
 app.post("/api/auth/register", (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, ref } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "All fields are required" });
   const pwErr = validatePassword(password);
   if (pwErr) return res.status(400).json({ error: pwErr });
@@ -229,6 +229,20 @@ app.post("/api/auth/register", (req, res) => {
   const role = users.length === 0 ? "super_admin" : "student";
   const user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role, tokenVersion: 1, createdAt: new Date().toISOString() };
   users.push(user);
+  // Referral bonus: friends who join via your link get a free week of Student Plus (k50)
+  if (ref) {
+    const referrer = users.find((u) => u.id === ref);
+    if (referrer && referrer.id !== user.id && referrer.role !== "bot" && referrer.role !== "mod_bot") {
+      const referrals = readJSON("referrals.json");
+      referrals.push({ id: uuidv4(), referrerId: referrer.id, referredId: user.id, createdAt: new Date().toISOString() });
+      writeJSON("referrals.json", referrals);
+      setSubscription(user, "k50");
+      user.subscriptionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      user.expiryNotified = false;
+      addNotification(user.id, "referral_bonus", "🎁 Free Week of Student Plus!", "You got 7 days of the K50 plan thanks to your friend's invite. Enjoy!", "/profile");
+      addNotification(referrer.id, "referral_friend", "🎉 A Friend Joined!", `${user.name} joined with your link — they got a free week of Student Plus!`, "/profile");
+    }
+  }
   writeJSON("users.json", users);
   addNotification(user.id, "welcome", "👋 Welcome to JohnWeb!", `Hi ${name}! Practice real ECZ past papers, take quizzes and earn badges. Start with a Grade 7 paper.`, "/browse");
   res.json({ message: "User created", user: { id: user.id, name: user.name, email: user.email } });
@@ -2638,6 +2652,16 @@ app.post("/api/admin/invites/:id/confirm", adminAuth, (req, res) => {
   res.json({ ok: true, plan: invite.plan });
 });
 
+// ─── REFERRAL PROGRAM ────────────────────────────────────
+app.get("/api/referral/status", auth, (req, res) => {
+  const referrals = readJSON("referrals.json").filter((r) => r.referrerId === req.user.id);
+  res.json({
+    link: `${req.protocol}://${req.get("host")}/register?ref=${req.user.id}`,
+    count: referrals.length,
+    program: "Invite 2+ friends — each gets a free week of Student Plus (K50 plan).",
+  });
+});
+
 // ─── ACCESS CODES (sell codes, students redeem) ─────────────
 function genAccessCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -3016,7 +3040,7 @@ app.get("/api/papers/:id/offline", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

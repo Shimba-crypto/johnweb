@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -7,6 +7,8 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get("ref") || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,7 +16,7 @@ export default function Register() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, ref }),
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error); return; }
@@ -39,6 +41,13 @@ export default function Register() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-16">
+      {ref && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-center">
+          <div className="text-2xl mb-1">🎁</div>
+          <p className="text-sm text-green-800 font-medium">A friend invited you!</p>
+          <p className="text-xs text-green-700 mt-1">Create an account and get a <strong>FREE week of Student Plus (K50 plan)</strong>.</p>
+        </div>
+      )}
       <h1 className="text-3xl font-bold text-center mb-8">Create Account</h1>
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}

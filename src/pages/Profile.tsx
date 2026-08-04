@@ -39,6 +39,8 @@ export default function Profile() {
   };
   const [subjects, setSubjects] = useState<any[]>([]);
   const [cert, setCert] = useState<any>(null);
+  const [referral, setReferral] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export default function Profile() {
       fetch(`/api/progress/${user.id}`).then((r) => r.json()).then(setProgress);
       fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
       fetch("/api/certificate/me", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then(setCert);
+      fetch("/api/referral/status", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then(setReferral);
     }
   }, [user]);
 
@@ -214,6 +217,31 @@ export default function Profile() {
               <p className="text-xs text-gray-400 mt-1">Requires a reasonable number of correct answers and good accuracy.</p>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-8">
+        <div className="bg-gradient-to-r from-purple-700 to-purple-600 text-white px-5 py-3 flex items-center justify-between">
+          <h2 className="font-semibold">🎁 Invite Friends</h2>
+          <span className="text-xs bg-white/20 px-2 py-1 rounded-full">{referral?.count || 0} joined</span>
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-gray-600 mb-3">Invite <strong>2 or more friends</strong> — each one who joins gets a <strong>free week of Student Plus (K50 plan)</strong>.</p>
+          {referral?.link && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input readOnly value={referral.link} onFocus={(e) => e.target.select()} className="flex-1 p-2 border rounded-lg text-sm bg-gray-50 font-mono" />
+              <button
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(referral.link); } catch {}
+                  setCopied(true); setTimeout(() => setCopied(false), 2000);
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700"
+              >
+                {copied ? "✓ Copied!" : "📋 Copy Link"}
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-3">Share this link on WhatsApp, school groups, or with family. New sign-ups get a free week of the K50 plan.</p>
         </div>
       </div>
 
