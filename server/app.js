@@ -2106,6 +2106,7 @@ app.get("/api/certificate", auth, (req, res) => {
   const correct = answers.filter((a) => a.isCorrect).length;
   const pct = answers.length ? Math.round((correct / answers.length) * 100) : 0;
   const level = xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1;
+
   // Save a verifiable certificate record
   const certs = readJSON("certificates.json");
   const existing = certs.find((c) => c.userId === req.user.id);
@@ -2151,6 +2152,19 @@ app.get("/api/certificate", auth, (req, res) => {
 
   res.setHeader("Content-Type", "text/html");
   res.send(html);
+});
+
+// Certificate status for the profile page (QR + details, JSON)
+app.get("/api/certificate/me", auth, (req, res) => {
+  const answers = readJSON("answers.json").filter((a) => a.userId === req.user.id);
+  const xp = readJSON("xp.json").find((x) => x.userId === req.user.id);
+  const correct = answers.filter((a) => a.isCorrect).length;
+  const pct = answers.length ? Math.round((correct / answers.length) * 100) : 0;
+  const level = xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1;
+  let cert = readJSON("certificates.json").find((c) => c.userId === req.user.id);
+  const verifyUrl = cert?.id ? `https://johnweb-qncu.onrender.com/verify/cert/${cert.id}` : null;
+  const qrUrl = cert?.id ? `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}` : null;
+  res.json({ earned: !!cert?.id, name: req.user.name, answers: answers.length, correct, pct, level, xp: xp?.xp || 0, verifyUrl, qrUrl, id: cert?.id || null });
 });
 
 // Public certificate verification (no auth)

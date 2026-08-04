@@ -38,6 +38,7 @@ export default function Profile() {
     } else alert(data.error || "Upload failed");
   };
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [cert, setCert] = useState<any>(null);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function Profile() {
       fetch("/api/follow/following", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then(setFollowing);
       fetch(`/api/progress/${user.id}`).then((r) => r.json()).then(setProgress);
       fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
+      fetch("/api/certificate/me", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()).then(setCert);
     }
   }, [user]);
 
@@ -178,6 +180,41 @@ export default function Profile() {
         >
           🎓 Download Certificate
         </a>
+      </div>
+
+      <div className="bg-white rounded-2xl border shadow-sm overflow-hidden mb-8">
+        <div className="bg-gradient-to-r from-green-700 to-green-600 text-white px-5 py-3 flex items-center justify-between">
+          <h2 className="font-semibold">🎓 My Certificate</h2>
+          {cert?.earned ? (
+            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Verified ✓</span>
+          ) : (
+            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Not yet earned</span>
+          )}
+        </div>
+        <div className="p-5">
+          {cert?.earned && cert.qrUrl ? (
+            <div className="flex flex-col sm:flex-row gap-5 items-center">
+              <div className="shrink-0">
+                <img src={cert.qrUrl} alt="Certificate verification QR" className="w-36 h-36 rounded-lg border p-2" width={144} height={144} />
+                <p className="text-[10px] text-gray-400 text-center mt-1">Scan to verify</p>
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <div className="text-2xl font-bold text-gray-800">{user.name}</div>
+                <div className="text-sm text-gray-500">Certificate of Achievement · {cert.pct}% accuracy · {cert.answers} answers</div>
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
+                  <a href="/api/certificate" target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">👁 View Certificate</a>
+                  <a href={cert.verifyUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg text-sm hover:bg-blue-100">🔍 Verify Online</a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="text-4xl mb-2">🎓</div>
+              <p className="text-gray-500">Keep practising — earn answers and accuracy to unlock your certificate.</p>
+              <p className="text-xs text-gray-400 mt-1">Requires a reasonable number of correct answers and good accuracy.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-between items-center mb-4">
