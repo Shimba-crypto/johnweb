@@ -653,13 +653,26 @@ function InvitesTab({ api }: { api: any }) {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await api("POST", "/api/admin/invites", { role, school, teacherName, maxUses, plan });
-    if (result.token) { setSchool(""); setTeacherName(""); load(); }
-    else alert(result.error || "Error");
+    if (result.token) {
+      setSchool(""); setTeacherName(""); load();
+      await copy(result.token);
+      setCopied(result.token);
+    } else alert(result.error || "Error");
   };
 
   const copy = async (token: string) => {
     const link = `${window.location.origin}/invite/${token}`;
-    if (navigator.clipboard) { try { await navigator.clipboard.writeText(link); setCopied(token); setTimeout(() => setCopied(""), 1500); } catch {} }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = link; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      }
+      setCopied(token); setTimeout(() => setCopied(""), 1500);
+    } catch {
+      prompt("Copy this invite link:", link);
+    }
   };
 
   const confirmPayment = async (id: string) => {
@@ -734,7 +747,17 @@ function InvitesTab({ api }: { api: any }) {
                 {inv.price > 0 && statusBadge(inv.paymentStatus)}
               </div>
               {inv.registeredUser && <div className="text-xs text-gray-500 mt-1">Registered: {inv.registeredUser}{inv.phone ? ` · ${inv.phone}` : ""}</div>}
-              <div className="text-sm text-gray-600 mt-1 truncate max-w-xs">{window.location.origin}/invite/{inv.token}</div>
+              <div className="flex items-center gap-1 mt-1">
+                <input
+                  readOnly
+                  value={`${window.location.origin}/invite/${inv.token}`}
+                  onFocus={(e) => e.target.select()}
+                  className="text-sm text-gray-600 bg-gray-50 border rounded px-2 py-1 min-w-0 flex-1"
+                />
+                <button onClick={() => copy(inv.token)} className="shrink-0 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+                  {copied === inv.token ? "✅ Copied" : "Copy"}
+                </button>
+              </div>
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               <button onClick={() => copy(inv.token)} className="text-sm text-blue-600 hover:underline">
