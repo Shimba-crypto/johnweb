@@ -30,7 +30,8 @@ export default function Layout() {
     return () => window.removeEventListener("storage", check);
   }, [location.pathname]);
 
-  // Refresh role from the server so role changes (e.g. promoted to admin) take effect
+  // Refresh role/subscription/children from the server so changes (e.g. promoted to admin,
+  // linked a child, upgraded) take effect without a full reload
   useEffect(() => {
     const t = localStorage.getItem("token");
     if (!t) return;
@@ -41,11 +42,9 @@ export default function Layout() {
         const old = localStorage.getItem("user");
         try {
           const prev = old ? JSON.parse(old) : {};
-          if (prev.role !== d.role || prev.name !== d.name) {
-            const updated = { ...prev, ...d };
-            localStorage.setItem("user", JSON.stringify(updated));
-            setUser(updated);
-          }
+          const updated = { ...prev, ...d };
+          localStorage.setItem("user", JSON.stringify(updated));
+          setUser(updated);
         } catch {}
       })
       .catch(() => {});
@@ -123,43 +122,50 @@ export default function Layout() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        <SectionLabel>Study</SectionLabel>
-        <Link to="/browse" className={linkCls("/browse")}>📚 <span>Past Papers</span></Link>
-        <Link to="/quizzes" className={linkCls("/quizzes")}>🎯 <span>Quizzes</span></Link>
-        <Link to="/battles" className={linkCls("/battles")}>⚔️ <span>Quiz Battles</span></Link>
-        <Link to="/redeem" className={linkCls("/redeem")}>🎫 <span>Redeem Code</span></Link>
-        <Link to="/boss-battle" className={linkCls("/boss-battle")}>🐉 <span>Boss Battle</span></Link>
-        <Link to="/essay" className={linkCls("/essay")}>✍️ <span>Essay Practice</span></Link>
-        <Link to="/worksheet" className={linkCls("/worksheet")}>🖨️ <span>Worksheets</span></Link>
-        <Link to="/careers" className={linkCls("/careers")}>🧭 <span>Career Roadmap</span></Link>
-        <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
-        <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
-        <Link to="/library" className={linkCls("/library")}>📚 <span>Library</span></Link>
-        <Link to="/flashcards" className={linkCls("/flashcards")}>🃏 <span>Flashcards</span></Link>
-        <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>
+        {user && (
+          <>
+            <SectionLabel>Study</SectionLabel>
+            <Link to="/browse" className={linkCls("/browse")}>📚 <span>Past Papers</span></Link>
+            <Link to="/quizzes" className={linkCls("/quizzes")}>🎯 <span>Quizzes</span></Link>
+            <Link to="/battles" className={linkCls("/battles")}>⚔️ <span>Quiz Battles</span></Link>
+            <Link to="/redeem" className={linkCls("/redeem")}>🎫 <span>Redeem Code</span></Link>
+            <Link to="/boss-battle" className={linkCls("/boss-battle")}>🐉 <span>Boss Battle</span></Link>
+            <Link to="/essay" className={linkCls("/essay")}>✍️ <span>Essay Practice</span></Link>
+            <Link to="/worksheet" className={linkCls("/worksheet")}>🖨️ <span>Worksheets</span></Link>
+            <Link to="/careers" className={linkCls("/careers")}>🧭 <span>Career Roadmap</span></Link>
+            <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
+            <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
+            <Link to="/library" className={linkCls("/library")}>📚 <span>Library</span></Link>
+            <Link to="/flashcards" className={linkCls("/flashcards")}>🃏 <span>Flashcards</span></Link>
+            <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>
 
-        <SectionLabel>Community</SectionLabel>
-        <Link to="/leaderboard" className={linkCls("/leaderboard")}>🏆 <span>Leaderboard</span></Link>
-        <Link to="/classes" className={linkCls("/classes")}>🏫 <span>Classes</span></Link>
-        <Link to="/bots" className={linkCls("/bots")}>🤖 <span>AI Tutors</span></Link>
-        <Link to="/news" className={linkCls("/news")}>📰 <span>News</span></Link>
-        <Link to="/install" className={linkCls("/install")}>📲 <span>Get the App</span></Link>
+            <SectionLabel>Community</SectionLabel>
+            <Link to="/leaderboard" className={linkCls("/leaderboard")}>🏆 <span>Leaderboard</span></Link>
+            <Link to="/classes" className={linkCls("/classes")}>🏫 <span>Classes</span></Link>
+            <Link to="/bots" className={linkCls("/bots")}>🤖 <span>AI Tutors</span></Link>
+            <Link to="/news" className={linkCls("/news")}>📰 <span>News</span></Link>
+            <Link to="/install" className={linkCls("/install")}>📲 <span>Get the App</span></Link>
+          </>
+        )}
 
-        <SectionLabel>Account</SectionLabel>
         {user ? (
           <>
+            <SectionLabel>Account</SectionLabel>
             {roleLink()}
             {user && ["admin", "super_admin", "omni_super"].includes(user.role) && (
               <Link to="/sell" className={linkCls("/sell")}>💰 <span>Sell</span></Link>
             )}
             <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
-            <Link to="/parent" className={linkCls("/parent")}>👨‍👩‍👧 <span>Parent Dashboard</span></Link>
+            {user.children?.length > 0 && (
+              <Link to="/parent" className={linkCls("/parent")}>👨‍👩‍👧 <span>Parent Dashboard</span></Link>
+            )}
             <Link to="/achievements" className={linkCls("/achievements")}>🏅 <span>Achievements</span></Link>
             <Link to="/bookmarks" className={linkCls("/bookmarks")}>🔖 <span>Saved</span></Link>
             <Link to="/settings" className={linkCls("/settings")}>⚙️ <span>Settings</span></Link>
           </>
         ) : (
           <>
+            <SectionLabel>Account</SectionLabel>
             <Link to="/login" className={linkCls("/login")}>🔑 <span>Login</span></Link>
             <Link to="/register" className={linkCls("/register")}>📝 <span>Sign Up</span></Link>
           </>

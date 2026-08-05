@@ -100,6 +100,11 @@ export default function Profile() {
         <div className="mt-3 flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 w-fit">
           ☁️ Progress auto-saves to the cloud — log in on any phone or computer and pick up where you left off.
         </div>
+        <div className="mt-3">
+          <Link to="/parent" className="inline-flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 font-medium hover:bg-green-100">
+            👨‍👩‍👧 Parent Dashboard — track your child's exam readiness
+          </Link>
+        </div>
         {following.length > 0 && (
           <div className="mt-3">
             <span className="text-xs text-gray-400 font-medium">Following: </span>

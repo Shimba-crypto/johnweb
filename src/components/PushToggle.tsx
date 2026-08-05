@@ -13,18 +13,24 @@ export default function PushToggle({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
+  const base64ToUint8Array = (base64: string) => {
+    const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+    const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(b64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  };
+
   useEffect(() => {
     const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     setSupported(ok);
     if (!ok) { setMsg("Your browser does not support push notifications."); return; }
-    // Check current state
-    Notification.requestPermission().then((perm) => {
-      if (perm === "granted") {
-        navigator.serviceWorker.ready.then(async (reg) => {
-          const sub = await reg.pushManager.getSubscription();
-          setEnabled(!!sub);
-        }).catch(() => {});
-      }
+    // Check current state WITHOUT prompting for permission
+    if (Notification.permission !== "granted") return;
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const sub = await reg.pushManager.getSubscription();
+      setEnabled(!!sub);
     }).catch(() => {});
   }, []);
 
@@ -40,7 +46,7 @@ export default function PushToggle({ token }: { token: string }) {
       const { publicKey } = await keyRes.json();
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: publicKey,
+        applicationServerKey: base64ToUint8Array(publicKey),
       });
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
