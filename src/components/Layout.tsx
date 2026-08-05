@@ -13,6 +13,29 @@ export default function Layout() {
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); localStorage.setItem("theme", dark ? "dark" : "light"); }, [dark]);
 
+  // Detect a new deployed version: show a "update available" pill so stale PWA
+  // caches (like installed apps) never stay stuck on broken old builds
+  const [updatePill, setUpdatePill] = useState(false);
+  const [latestVersion, setLatestVersion] = useState("");
+  useEffect(() => {
+    const known = localStorage.getItem("jw-version");
+    const check = () => {
+      fetch("/version.json", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((v) => {
+          const cur = v.version || "";
+          if (!cur) return;
+          setLatestVersion(cur);
+          if (!known) { localStorage.setItem("jw-version", cur); return; }
+          if (cur !== known) setUpdatePill(true);
+        })
+        .catch(() => {});
+    };
+    check();
+    const t = setInterval(check, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
   // Real usage analytics: report the current page path once per route change
   useEffect(() => {
     if (location.pathname.startsWith("/api")) return;
@@ -232,6 +255,17 @@ export default function Layout() {
       {announcement.enabled && announcement.text && (
         <div className="bg-blue-600 text-white text-center text-sm py-2 px-4">
           📢 {announcement.text}
+        </div>
+      )}
+      {updatePill && (
+        <div className="bg-orange-500 text-white text-center text-sm py-2 px-4 flex items-center justify-center gap-3">
+          <span>🔄 A new version of JohnWeb is available.</span>
+          <button
+            onClick={() => { localStorage.setItem("jw-version", latestVersion); location.reload(); }}
+            className="bg-white text-orange-600 font-semibold px-3 py-0.5 rounded-full text-xs"
+          >
+            Reload now
+          </button>
         </div>
       )}
       {/* Desktop sidebar */}

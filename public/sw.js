@@ -1,4 +1,4 @@
-const CACHE = "johnweb-v3";
+const CACHE = "johnweb-v4";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
