@@ -2451,9 +2451,17 @@ app.get("/api/admin/backup", adminAuth, (req, res) => {
   const backupDir = path.join(DATA_DIR, "..", "backups");
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const filename = `johnweb-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith(".json"));
+  // Read via readJSON (Mongo-backed when in Mongo mode) so backups reflect
+  // the REAL live data, not whatever files happen to be on disk.
+  const INIT_COLLECTIONS = ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json", "invoices.json"];
+  const CORE = ["users.json", "subjects.json", "papers.json", "questions.json", "answers.json", "settings.json"];
   const data = {};
-  files.forEach((f) => { data[f] = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), "utf-8")); });
+  [...new Set([...INIT_COLLECTIONS, ...CORE])].forEach((f) => {
+    const v = readJSON(f);
+    if (typeof v !== "object" || v === null) return;
+    if (Array.isArray(v) && v.length === 0 && !fs.existsSync(path.join(DATA_DIR, f))) return;
+    data[f] = v;
+  });
   fs.writeFileSync(path.join(backupDir, filename), JSON.stringify(data, null, 2));
   adminLog("backup_created", req.user.id, req.user.name, filename);
   res.setHeader("Content-Type", "application/json");
@@ -3041,6 +3049,26 @@ app.post("/api/admin/codes", adminAuth, (req, res) => {
 
 app.get("/api/admin/codes", adminAuth, (req, res) => {
   res.json(readJSON("codes.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+});
+
+// Admin support: redeem a code FOR a user (customer support task)
+app.post("/api/admin/codes/redeem", adminAuth, (req, res) => {
+  const { code, userId } = req.body;
+  if (!code || !userId) return res.status(400).json({ error: "code and userId required" });
+  const codes = readJSON("codes.json");
+  const rec = codes.find((c) => c.code.toUpperCase() === String(code).toUpperCase().trim());
+  if (!rec) return res.status(400).json({ error: "Invalid code" });
+  if (rec.status === "used") return res.status(400).json({ error: "This code has already been used" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  rec.status = "used"; rec.usedBy = userId; rec.usedAt = new Date().toISOString();
+  writeJSON("codes.json", codes);
+  setSubscription(users[idx], rec.plan, REDEEM_DAYS[rec.plan] || TRIAL_DAYS[rec.plan] || 30);
+  writeJSON("users.json", users);
+  addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
+  adminLog("code_redeemed_admin", req.user.id, req.user.name, `${rec.plan} for ${users[idx].email}`);
+  res.json({ message: `Plan ${rec.plan} activated for ${users[idx].email}!`, plan: rec.plan, expiresAt: users[idx].subscriptionExpiresAt });
 });
 
 app.post("/api/codes/redeem", (req, res) => {
