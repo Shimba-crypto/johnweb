@@ -10,7 +10,20 @@ installAuthFetch();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => console.log("SW registration failed:", err));
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        let reloaded = false;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "activated" && !reloaded && navigator.serviceWorker.controller) {
+            reloaded = true;
+            localStorage.setItem("jwVersionBump", Date.now().toString());
+            window.location.reload();
+          }
+        });
+      });
+    }).catch((err) => console.log("SW registration failed:", err));
   });
 }
 

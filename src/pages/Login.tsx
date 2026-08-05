@@ -22,7 +22,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [error, setError] = useState("");
   const [googleClientId, setGoogleClientId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -89,27 +91,45 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("refreshToken", data.refreshToken || "");
-      localStorage.setItem("user", JSON.stringify(data.user));
-      // Save session for quick device profile switching
-      try {
-        const sessions = JSON.parse(localStorage.getItem("jwSessions") || "[]");
-        const entry = { token: data.token, user: data.user };
-        const idx = sessions.findIndex((s: any) => s.user.id === data.user.id);
-        if (idx >= 0) sessions[idx] = entry; else sessions.push(entry);
-        localStorage.setItem("jwSessions", JSON.stringify(sessions.slice(-5)));
-      } catch {}
-      navigate("/browse");
-    } else {
-      setError(data.error);
+    if (!navigator.onLine) {
+      setError("You appear to be offline. Check your connection and try again.");
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    const timer = setTimeout(() => {
+      setSubmitting(false);
+      setError("The server is taking too long to respond. Check your connection and try again.");
+    }, 20000);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("refreshToken", data.refreshToken || "");
+        localStorage.setItem("user", JSON.stringify(data.user));
+        // Save session for quick device profile switching
+        try {
+          const sessions = JSON.parse(localStorage.getItem("jwSessions") || "[]");
+          const entry = { token: data.token, user: data.user };
+          const idx = sessions.findIndex((s: any) => s.user.id === data.user.id);
+          if (idx >= 0) sessions[idx] = entry; else sessions.push(entry);
+          localStorage.setItem("jwSessions", JSON.stringify(sessions.slice(-5)));
+        } catch {}
+        navigate("/browse");
+      } else {
+        setError(data.error);
+      }
+    } catch {
+      clearTimeout(timer);
+      setError("Could not reach the server. Check your connection.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -126,8 +146,8 @@ export default function Login() {
           <label className="block text-sm font-medium mb-1">Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border rounded-lg" required />
         </div>
-        <button type="submit" className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-medium">
-          Login
+        <button type="submit" disabled={submitting} className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 font-medium disabled:opacity-60">
+          {submitting ? "Signing in…" : "Login"}
         </button>
         <div className="flex items-center justify-between text-sm">
           <Link to="/forgot-password" className="text-gray-500 hover:text-green-600 hover:underline">Forgot password?</Link>
