@@ -23,6 +23,29 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript><div style="font-family:sans-serif;padding:40px;text-align:center">JohnWeb needs JavaScript enabled. Please enable it and reload.</div></noscript>
+    <script>
+      // Show a visible message if the app's JS fails to load (stale PWA bundle, offline, etc.)
+      window.__jwLoaded = false;
+      window.addEventListener("error", function (ev) {
+        if (window.__jwLoaded) return;
+        var box = document.getElementById("jw-fatal");
+        if (!box) {
+          box = document.createElement("div");
+          box.id = "jw-fatal";
+          box.style.cssText = "position:fixed;inset:0;background:#fff;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;padding:20px;text-align:center";
+          document.body.appendChild(box);
+        }
+        box.innerHTML = '<div style="font-size:40px;margin-bottom:10px">⚠️</div><h2 style="margin:0 0 8px;color:#dc2626">JohnWeb couldn\'t load</h2><p style="color:#374151;margin:0 0 4px">The app failed to start on this device.</p><p style="color:#6b7280;font-size:13px;max-width:360px;margin:0 0 16px">This is usually a stale app cache or a weak connection.</p><button onclick="location.reload(true)" style="background:#16a34a;color:#fff;border:0;padding:10px 24px;border-radius:8px;font-size:15px;cursor:pointer">Reload</button><button onclick="navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister()}))}).then(function(){caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c)}))}).then(function(){location.href=location.href})})" style="background:#dc2626;color:#fff;border:0;padding:10px 24px;border-radius:8px;font-size:15px;cursor:pointer;margin-left:8px">Clear app cache</button>';
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Mark JS as loaded once the React app mounts
+      document.addEventListener("DOMContentLoaded", function () {
+        var root = document.getElementById("root");
+        if (root && root.children.length > 0) window.__jwLoaded = true;
+      });
+    </script>
   </body>
 </html>
