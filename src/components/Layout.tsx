@@ -134,6 +134,7 @@ export default function Layout() {
         <Link to="/careers" className={linkCls("/careers")}>🧭 <span>Career Roadmap</span></Link>
         <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
         <Link to="/notes" className={linkCls("/notes")}>📝 <span>Notes</span></Link>
+        <Link to="/library" className={linkCls("/library")}>📚 <span>Library</span></Link>
         <Link to="/flashcards" className={linkCls("/flashcards")}>🃏 <span>Flashcards</span></Link>
         <Link to="/timetable" className={linkCls("/timetable")}>🗓️ <span>Exam Timetable</span></Link>
 

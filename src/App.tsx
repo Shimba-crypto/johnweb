@@ -20,6 +20,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Settings from "./pages/Settings";
 import USSD from "./pages/USSD";
 import Install from "./pages/Install";
+import Library from "./pages/Library";
 import Bots from "./pages/Bots";
 import Pricing from "./pages/Pricing";
 import Teacher from "./pages/Teacher";
@@ -73,6 +74,8 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/ussd" element={<USSD />} />
         <Route path="/install" element={<Install />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/library/:id" element={<Library />} />
         <Route path="/bots" element={<Bots />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/teacher" element={<Teacher />} />

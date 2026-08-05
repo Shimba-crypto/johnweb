@@ -2970,6 +2970,33 @@ ${Object.entries(groups).map(([subject, list]) => `
   res.send(html);
 });
 
+// ─── PUBLIC LIBRARY (free study books) ─────────────────────
+function getLibraryBooks() {
+  const fromStore = readJSON("library.json");
+  if (Array.isArray(fromStore) && fromStore.length) return fromStore;
+  // Fallback to the committed seed (covers fresh Mongo / missing collection)
+  const seedPath = path.join(__dirname, "..", "scripts", "library-seed.json");
+  try { if (fs.existsSync(seedPath)) return JSON.parse(fs.readFileSync(seedPath, "utf-8")); } catch {}
+  return [];
+}
+
+app.get("/api/library", (req, res) => {
+  const books = getLibraryBooks();
+  const { subject, grade, q } = req.query;
+  let list = books;
+  if (subject) list = list.filter((b) => b.subject === subject);
+  if (grade) list = list.filter((b) => String(b.grade) === String(grade));
+  if (q) { const s = String(q).toLowerCase(); list = list.filter((b) => (b.title + " " + b.description + " " + b.subject).toLowerCase().includes(s)); }
+  res.json(list.map((b) => ({ id: b.id, subject: b.subject, subjectId: b.subjectId, grade: b.grade, title: b.title, author: b.author, description: b.description, cover: b.cover || "📖", sections: (b.sections || []).length })));
+});
+
+app.get("/api/library/:id", (req, res) => {
+  const books = getLibraryBooks();
+  const book = books.find((b) => b.id === req.params.id);
+  if (!book) return res.status(404).json({ error: "Book not found" });
+  res.json(book);
+});
+
 // ─── #20 SIMILAR QUESTIONS ──────────────────────────────────
 app.get("/api/questions/:id/similar", (req, res) => {
   const questions = readJSON("questions.json");
@@ -3729,7 +3756,7 @@ app.post("/api/usage/page-view", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
