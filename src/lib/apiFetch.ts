@@ -2,10 +2,7 @@ const origFetch = window.fetch.bind(window);
 let refreshPromise: Promise<string> | null = null;
 
 function storeUser(userData: any) {
-  const user = localStorage.getItem("user");
-  if (user && userData) {
-    try { localStorage.setItem("user", JSON.stringify({ ...JSON.parse(user), ...userData })); } catch {}
-  }
+  if (userData) patchUser(userData);
 }
 
 // Dedupe concurrent refreshes (refresh tokens are one-time use)
@@ -71,11 +68,24 @@ export function installAuthFetch() {
 export function setAuthTokens(token: string, refreshToken: string, user?: any) {
   localStorage.setItem("token", token);
   localStorage.setItem("refreshToken", refreshToken);
-  if (user) localStorage.setItem("user", JSON.stringify(user));
+  if (user) patchUser(user);
+}
+
+// Merge fields into the stored user and notify the whole app (same tab included)
+export function patchUser(patch: any) {
+  if (!patch || typeof patch !== "object") return;
+  try {
+    const prev = JSON.parse(localStorage.getItem("user") || "null");
+    localStorage.setItem("user", JSON.stringify({ ...(prev || {}), ...patch }));
+  } catch {
+    localStorage.setItem("user", JSON.stringify(patch));
+  }
+  window.dispatchEvent(new Event("jw:user-changed"));
 }
 
 export function clearAuth() {
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
+  window.dispatchEvent(new Event("jw:user-changed"));
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { patchUser } from "../lib/apiFetch";
 
 const PLAN_NAMES: Record<string, string> = {
   free: "Free",
@@ -87,14 +88,10 @@ export default function Pricing() {
     const d = await res.json();
     if (d.error) { setTrialMsg(d.error); return; }
     setTrialMsg(`✅ ${d.message}`);
+    patchUser({ subscription: d.plan, subscriptionExpiresAt: d.expiresAt });
     try {
       const u = JSON.parse(localStorage.getItem("user") || "null");
-      if (u) {
-        u.subscription = d.plan;
-        u.subscriptionExpiresAt = d.expiresAt;
-        localStorage.setItem("user", JSON.stringify(u));
-        setUser(u);
-      }
+      if (u) setUser(u);
     } catch {}
   };
 

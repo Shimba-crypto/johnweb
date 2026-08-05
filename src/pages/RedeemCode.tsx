@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { patchUser } from "../lib/apiFetch";
 
 export default function RedeemCode() {
   usePageTitle("Redeem Code");
@@ -26,7 +27,7 @@ export default function RedeemCode() {
     });
     const data = await res.json();
     if (data.error) setError(data.error);
-    else { setMsg(data.message); localStorage.setItem("user", JSON.stringify({ ...user, subscription: data.plan })); setCode(""); }
+    else { setMsg(data.message); patchUser({ subscription: data.plan, subscriptionExpiresAt: data.expiresAt }); setCode(""); }
   };
 
   return (

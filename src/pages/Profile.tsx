@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { patchUser } from "../lib/apiFetch";
 
 export default function Profile() {
   usePageTitle("My Profile");
@@ -35,7 +36,7 @@ export default function Profile() {
     const data = await res.json();
     if (data.url) {
       const updated = { ...user, avatar: data.url };
-      localStorage.setItem("user", JSON.stringify(updated));
+      patchUser(updated);
       setUser(updated);
     } else alert(data.error || "Upload failed");
   };

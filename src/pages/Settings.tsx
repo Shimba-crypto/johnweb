@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { patchUser } from "../lib/apiFetch";
 import PushToggle from "../components/PushToggle";
 
 export default function Settings() {
@@ -48,7 +49,7 @@ export default function Settings() {
     e.preventDefault();
     const res = await api("PUT", "/api/auth/profile", { name });
     if (res.error) setMsg(res.error);
-    else { setMsg("Profile updated!"); setUser(res); localStorage.setItem("user", JSON.stringify(res)); }
+    else { setMsg("Profile updated!"); setUser(res); patchUser(res); }
   };
 
   const changePassword = async (e: React.FormEvent) => {
@@ -75,7 +76,7 @@ export default function Settings() {
     const data = await res.json();
     if (data.error) setOmniMsg(data.error);
     else {
-      localStorage.setItem("user", JSON.stringify(data.user));
+      patchUser(data.user);
       setOmniMsg(`✅ ${data.message}. Reloading...`);
       setTimeout(() => window.location.reload(), 800);
     }

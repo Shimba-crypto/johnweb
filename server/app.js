@@ -3060,7 +3060,7 @@ app.post("/api/codes/redeem", (req, res) => {
   setSubscription(users[idx], rec.plan, REDEEM_DAYS[rec.plan] || TRIAL_DAYS[rec.plan] || 30);
   writeJSON("users.json", users);
   addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
-  res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan });
+  res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan, expiresAt: users[idx].subscriptionExpiresAt });
 });
 
 

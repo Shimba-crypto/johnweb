@@ -27,7 +27,8 @@ export default function Layout() {
     try { setUser(stored ? JSON.parse(stored) : null); } catch { setUser(null); }
     const check = () => { const u = localStorage.getItem("user"); try { setUser(u ? JSON.parse(u) : null); } catch { setUser(null); } };
     window.addEventListener("storage", check);
-    return () => window.removeEventListener("storage", check);
+    window.addEventListener("jw:user-changed", check);
+    return () => { window.removeEventListener("storage", check); window.removeEventListener("jw:user-changed", check); };
   }, [location.pathname]);
 
   // Refresh role/subscription/children from the server so changes (e.g. promoted to admin,
