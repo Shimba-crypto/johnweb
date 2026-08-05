@@ -6,9 +6,9 @@ const PLAN_NAMES: Record<string, string> = {
   free: "Free",
   k10: "Starter",
   k20: "Basic",
-  k30: "Premium",
+  k30: "Plus",
   k50: "Pro",
-  k100: "Enterprise",
+  k100: "Premium",
   k200: "Teacher",
 };
 
@@ -34,8 +34,26 @@ const BTN_COLORS: Record<string, string> = {
 
 const BADGES: Record<string, string> = {
   k10: "STARTER",
-  k30: "MOST POPULAR",
-  k100: "ENTERPRISE",
+  k100: "MOST POPULAR",
+  k200: "TEACHER'S CHOICE",
+};
+
+// Payment happens through the live payment-link flow (auto-grant access code)
+const INVOICE_LINKS: Record<string, string> = {
+  k10: "S4IR74",
+  k20: "H94JHP",
+  k30: "SWD87K",
+  k100: "H3VMO1",
+  k200: "DNLCFN",
+};
+
+const DURATION_NOTE: Record<string, string> = {
+  k10: "one-time · 30 days",
+  k20: "one-time · 30 days",
+  k30: "one-time · 30 days",
+  k50: "one-time · 30 days",
+  k100: "one-time · 1 year",
+  k200: "one-time · 1 year",
 };
 
 const TRIAL_OPTIONS = [
@@ -57,21 +75,6 @@ export default function Pricing() {
     const u = localStorage.getItem("user");
     if (u) try { setUser(JSON.parse(u)); } catch {}
   }, []);
-
-  const payWithMobileMoney = async (planId: string) => {
-    const token = localStorage.getItem("token");
-    if (!token) return alert("Login to subscribe");
-    const phone = prompt("Enter your Airtel/MTN phone number (e.g. 0971234567):");
-    if (!phone) return;
-    const res = await fetch("/api/payments/initiate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ plan: planId, phone }),
-    });
-    const d = await res.json();
-    if (d.error) alert(d.error);
-    else alert(`${d.message}\n\nPayment ID: ${d.paymentId}`);
-  };
 
   const startTrial = async (planId: string) => {
     const token = localStorage.getItem("token");
@@ -95,9 +98,8 @@ export default function Pricing() {
     } catch {}
   };
 
-  const paidPlans = plans.filter((p) => !p.id.startsWith("t"));
+  const paidPlans = plans.filter((p) => !p.id.startsWith("t") && p.id !== "free" && p.id !== "k50");
   const currentPlan = user?.subscription || "free";
-  const currentIndex = paidPlans.findIndex((p) => p.id === currentPlan);
   const hasActive = currentPlan !== "free";
 
   return (
@@ -144,7 +146,6 @@ export default function Pricing() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {paidPlans.map((plan, i) => {
           const isCurrent = plan.id === currentPlan;
-          const isUpgrade = i > currentIndex;
           const name = PLAN_NAMES[plan.id] || plan.label;
           return (
             <div
@@ -160,8 +161,8 @@ export default function Pricing() {
                 <h3 className="text-lg font-bold">{name}</h3>
                 <div className="text-3xl font-bold mt-2">
                   {plan.price === 0 ? "Free" : `K${plan.price}`}
-                  {plan.price > 0 && <span className="text-sm font-normal text-gray-500">/mo</span>}
                 </div>
+                {DURATION_NOTE[plan.id] && <div className="text-xs text-gray-500 mt-1">{DURATION_NOTE[plan.id]}</div>}
               </div>
               <ul className="space-y-2 mb-6 flex-1 text-sm">
                 {plan.features.map((f: string, fi: number) => (
@@ -177,12 +178,15 @@ export default function Pricing() {
                 </Link>
               ) : isCurrent ? (
                 <div className="text-center text-sm text-green-600 font-medium py-2 border-t pt-3">Current Plan</div>
-              ) : plan.price > 0 && isUpgrade ? (
+              ) : plan.price > 0 && INVOICE_LINKS[plan.id] ? (
                 <div className="space-y-2 border-t pt-3">
-                  <button onClick={() => payWithMobileMoney(plan.id)} className={`block w-full text-center text-white ${BTN_COLORS[plan.id] || "bg-green-600"} py-2 rounded-lg text-sm font-medium hover:opacity-90`}>
+                  <Link
+                    to={`/invoice/${INVOICE_LINKS[plan.id]}`}
+                    className={`block w-full text-center text-white ${BTN_COLORS[plan.id] || "bg-green-600"} py-2 rounded-lg text-sm font-medium hover:opacity-90`}
+                  >
                     📱 Pay with Mobile Money
-                  </button>
-                  <p className="text-center text-xs text-gray-400">Airtel Money / MTN Mobile Money</p>
+                  </Link>
+                  <p className="text-center text-xs text-gray-400">Airtel Money / MTN Mobile Money — instant access</p>
                 </div>
               ) : null}
             </div>
@@ -217,8 +221,8 @@ export default function Pricing() {
         <h2 className="text-2xl font-bold mb-4">All plans include</h2>
         <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto text-left">
           {[
-            { icon: "📚", title: "18 Subjects", text: "Full ECZ curriculum coverage" },
-            { icon: "📝", title: "990+ Questions", text: "With detailed model answers" },
+            { icon: "📚", title: "19 Subjects", text: "Full ECZ curriculum coverage" },
+            { icon: "📝", title: "1440+ Questions", text: "With detailed model answers" },
             { icon: "🇿🇲", title: "Zambian-Made", text: "Built for Zambian students" },
           ].map((b) => (
             <div key={b.title} className="bg-white p-4 rounded-xl border shadow-sm">

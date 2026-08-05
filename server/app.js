@@ -760,18 +760,19 @@ app.post("/api/admin/users/:id/notify", adminAuth, (req, res) => {
 // ─── SUBSCRIPTIONS ────────────────────────────────────────
 const PLANS = {
   free: { price: 0, label: "Free", features: ["Browse past papers", "Submit answers", "View model answers"] },
-  k10: { price: 10, label: "K10", features: ["Everything in Free", "AI chatbot access", "Detailed feedback", "Export results"] },
-  k20: { price: 20, label: "K20", features: ["Everything in K10", "Priority grading", "Advanced analytics", "Dark mode"] },
-  k30: { price: 30, label: "K30", features: ["Everything in K20", "Teacher bot access", "Unlimited answers", "Certificate of completion"] },
-  k50: { price: 50, label: "K50", features: ["Everything in K30", "Become a teacher", "Create your own bots", "API access"] },
-  k100: { price: 100, label: "K100", features: ["Everything in K50", "Admin panel", "Create MOD bots", "Priority support", "Custom branding"] },
-  k200: { price: 200, label: "K200 Teacher", features: ["Teacher account", "Grade student answers", "Create quizzes", "Manage a class", "View student progress", "Everything in K100"] },
+  k10: { price: 10, label: "Starter", features: ["All past papers with model answers", "Submit & get graded instantly", "Progress tracking & achievements", "30 days of access"] },
+  k20: { price: 20, label: "Basic", features: ["Everything in Starter", "Quizzes with instant feedback", "Flashcards for revision", "Exam Mode timed practice", "30 days of access"] },
+  k30: { price: 30, label: "Plus", features: ["Everything in Basic", "AI tutor chat", "Printable worksheets", "Essay practice with feedback", "30 days of access"] },
+  k50: { price: 50, label: "Pro", features: ["Everything in Plus", "Quiz battles & boss battles", "Leaderboard bragging rights", "Study teams & saved notes", "30 days of access"] },
+  k100: { price: 100, label: "Premium", features: ["Everything in Pro", "1 full year of access", "Priority support", "Every feature unlocked"] },
+  k200: { price: 200, label: "Teacher", features: ["Teacher account", "Grade student answers", "Create quizzes for your class", "Manage classes & view progress", "1 full year of access", "Everything in Premium"] },
   t1d: { price: 0, label: "1-Day Trial", trialDays: 1, features: ["Full premium access for 1 day", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
   t3d: { price: 0, label: "3-Day Trial", trialDays: 3, features: ["Full premium access for 3 days", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
   t1w: { price: 0, label: "1-Week Trial", trialDays: 7, features: ["Full premium access for 1 week", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
 };
 
 const TRIAL_DAYS = { t1d: 1, t3d: 3, t1w: 7 };
+const REDEEM_DAYS = { k10: 30, k20: 30, k30: 30, k50: 30, k100: 365, k200: 365 };
 
 app.get("/api/pricing", (req, res) => {
   res.json(Object.entries(PLANS).map(([id, plan]) => ({ id, ...plan })));
@@ -2070,7 +2071,7 @@ app.post("/api/admin/payments/:id/confirm", adminAuth, (req, res) => {
   writeJSON("payments.json", payments);
   const users = readJSON("users.json");
   const uidx = users.findIndex((u) => u.id === payments[idx].userId);
-  if (uidx !== -1) { setSubscription(users[uidx], payments[idx].plan); writeJSON("users.json", users); }
+  if (uidx !== -1) { setSubscription(users[uidx], payments[idx].plan, REDEEM_DAYS[payments[idx].plan] || 30); writeJSON("users.json", users); }
   addNotification(payments[idx].userId, "payment_complete", "Subscription Activated", `Your ${payments[idx].plan} plan is now active!`, "/profile");
   adminLog("payment_confirmed", req.user.id, req.user.name, `${payments[idx].plan} for ${payments[idx].userId}`);
   res.json(payments[idx]);
@@ -3056,7 +3057,7 @@ app.post("/api/codes/redeem", (req, res) => {
   if (idx === -1) return res.status(404).json({ error: "User not found" });
   rec.status = "used"; rec.usedBy = userId; rec.usedAt = new Date().toISOString();
   writeJSON("codes.json", codes);
-  setSubscription(users[idx], rec.plan, TRIAL_DAYS[rec.plan]);
+  setSubscription(users[idx], rec.plan, REDEEM_DAYS[rec.plan] || TRIAL_DAYS[rec.plan] || 30);
   writeJSON("users.json", users);
   addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
   res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan });

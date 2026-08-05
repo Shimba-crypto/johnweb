@@ -157,15 +157,19 @@ export default function Home() {
       <section className="bg-gradient-to-br from-green-600 via-green-500 to-orange-400 text-white">
         <div className="max-w-7xl mx-auto px-4 py-20 text-center">
           <h1 className="text-5xl font-bold mb-4">Zambian Past Papers, Answered.</h1>
-          <p className="text-xl mb-8 opacity-90">
+          <p className="text-xl mb-4 opacity-90">
             Practice ECZ past papers with model answers. Improve your exam performance.
           </p>
-          <div className="flex gap-4 justify-center">
+          <p className="text-sm mb-8 opacity-80">💳 Pay by Airtel Money / MTN Mobile Money — instant access, no card needed</p>
+          <div className="flex gap-4 justify-center flex-wrap">
             <Link to="/browse" className="bg-white text-green-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100">
               Browse Past Papers
             </Link>
             <Link to="/register" className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10">
               Get Started
+            </Link>
+            <Link to="/pricing" className="bg-amber-400 text-green-900 px-8 py-3 rounded-lg font-semibold hover:bg-amber-300">
+              🎁 Try Premium Free
             </Link>
           </div>
         </div>
@@ -184,6 +188,85 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <section className="bg-white py-16 border-t">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl font-bold mb-8 text-center">How to Get Access</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
+              <div className="text-3xl mb-3">1️⃣</div>
+              <h3 className="text-lg font-semibold mb-2">Pick a plan</h3>
+              <p className="text-gray-600 text-sm">From K10 for a month to the K200 Teacher plan for a whole year.</p>
+            </div>
+            <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
+              <div className="text-3xl mb-3">2️⃣</div>
+              <h3 className="text-lg font-semibold mb-2">Pay by Mobile Money</h3>
+              <p className="text-gray-600 text-sm">Airtel Money or MTN Mobile Money to 0771460648 — tap "I've paid" on the link.</p>
+            </div>
+            <div className="bg-green-50 p-6 rounded-xl border border-green-200 text-center">
+              <div className="text-3xl mb-3">3️⃣</div>
+              <h3 className="text-lg font-semibold mb-2">Start instantly</h3>
+              <p className="text-gray-600 text-sm">Your access code unlocks everything the moment payment is confirmed.</p>
+            </div>
+          </div>
+          <div className="text-center mt-8">
+            <Link to="/pricing" className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700">
+              See Plans & Pricing
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 py-16">
+        <h2 className="text-3xl font-bold mb-8 text-center">Plans from K10</h2>
+        <div className="grid md:grid-cols-5 gap-4">
+          {[
+            { name: "Starter", price: "K10", note: "30 days", color: "text-green-600" },
+            { name: "Basic", price: "K20", note: "30 days", color: "text-blue-600" },
+            { name: "Plus", price: "K30", note: "30 days", color: "text-purple-600" },
+            { name: "Premium", price: "K100", note: "1 year", color: "text-red-600" },
+            { name: "Teacher", price: "K200", note: "1 year", color: "text-teal-600" },
+          ].map((p) => (
+            <Link key={p.name} to="/pricing" className="bg-white p-6 rounded-xl shadow-sm border hover:shadow-md transition text-center">
+              <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{p.name}</div>
+              <div className={`text-3xl font-bold mt-2 ${p.color}`}>{p.price}</div>
+              <div className="text-xs text-gray-400 mt-1">{p.note}</div>
+            </Link>
+          ))}
+        </div>
+        <p className="text-center text-sm text-gray-500 mt-4">
+          Can't pay online? Redeem an access code from your school or teacher —{" "}
+          <Link to="/redeem" className="text-green-600 hover:underline font-medium">Redeem here</Link>.
+        </p>
+      </section>
+
+      <section className="bg-white py-16 border-t">
+        <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">Teachers: grade less, teach more</h2>
+            <p className="text-gray-600 mb-6">
+              Give your class past-paper practice, grade their answers automatically,
+              create quizzes and track progress — all in one place. One K200 Teacher
+              plan covers the whole year.
+            </p>
+            <Link to="/pricing" className="inline-block bg-teal-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-teal-700">
+              Get the Teacher Plan
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { icon: "✅", text: "Auto-grade student answers" },
+              { icon: "📝", text: "Create quizzes for your class" },
+              { icon: "📊", text: "Track student progress" },
+              { icon: "🏫", text: "Manage your whole class" },
+            ].map((f) => (
+              <div key={f.text} className="bg-teal-50 border border-teal-200 rounded-xl p-4 text-sm font-medium flex items-center gap-2">
+                <span>{f.icon}</span> {f.text}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="max-w-7xl mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8">
