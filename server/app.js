@@ -1981,13 +1981,6 @@ app.use((err, req, res, next) => {
 
 app.use("/uploads", express.static(uploadDir, { setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff") }));
 
-// Installer downloads (APK/EXE) — served from public/install (committed, small APK)
-// and a local installers/ dir (for the large EXE, gitignored). If the file is not
-// present locally, fall back to the committed APK in public/install.
-const installersDir = path.join(DATA_DIR, "..", "installers");
-if (!fs.existsSync(installersDir)) fs.mkdirSync(installersDir, { recursive: true });
-app.use("/installers", express.static(installersDir, { setHeaders: (res) => res.setHeader("Content-Disposition", "attachment") }));
-
 // ─── PASSWORD RESET ───────────────────────────────────────
 
 app.post("/api/auth/reset-password", (req, res) => {
