@@ -130,7 +130,6 @@ export default function Layout() {
         <Link to="/redeem" className={linkCls("/redeem")}>🎫 <span>Redeem Code</span></Link>
         <Link to="/boss-battle" className={linkCls("/boss-battle")}>🐉 <span>Boss Battle</span></Link>
         <Link to="/essay" className={linkCls("/essay")}>✍️ <span>Essay Practice</span></Link>
-        <Link to="/battles" className={linkCls("/battles")}>⚔️ <span>Quiz Battles</span></Link>
         <Link to="/worksheet" className={linkCls("/worksheet")}>🖨️ <span>Worksheets</span></Link>
         <Link to="/careers" className={linkCls("/careers")}>🧭 <span>Career Roadmap</span></Link>
         <Link to="/teams" className={linkCls("/teams")}>👥 <span>Study Teams</span></Link>
