@@ -19,6 +19,8 @@ import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Settings from "./pages/Settings";
 import USSD from "./pages/USSD";
+import Invoice from "./pages/Invoice";
+import Sell from "./pages/Sell";
 import Install from "./pages/Install";
 import Library from "./pages/Library";
 import Bots from "./pages/Bots";
@@ -73,6 +75,8 @@ export default function App() {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/ussd" element={<USSD />} />
+        <Route path="/invoice/:code" element={<Invoice />} />
+        <Route path="/sell" element={<Sell />} />
         <Route path="/install" element={<Install />} />
         <Route path="/library" element={<Library />} />
         <Route path="/library/:id" element={<Library />} />

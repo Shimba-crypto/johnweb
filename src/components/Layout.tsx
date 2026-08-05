@@ -149,6 +149,9 @@ export default function Layout() {
         {user ? (
           <>
             {roleLink()}
+            {user && ["admin", "super_admin", "omni_super"].includes(user.role) && (
+              <Link to="/sell" className={linkCls("/sell")}>💰 <span>Sell</span></Link>
+            )}
             <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
             <Link to="/parent" className={linkCls("/parent")}>👨‍👩‍👧 <span>Parent Dashboard</span></Link>
             <Link to="/achievements" className={linkCls("/achievements")}>🏅 <span>Achievements</span></Link>

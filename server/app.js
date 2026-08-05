@@ -2689,7 +2689,7 @@ app.post("/api/battles/:id/submit", auth, (req, res) => {
 });
 
 
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "invoices.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
@@ -2847,6 +2847,118 @@ app.get("/api/referral/status", auth, (req, res) => {
     count: referrals.length,
     program: "Invite 2+ friends — each gets a free week of Student Plus (K50 plan).",
   });
+});
+
+// ─── SELL: PAYMENT INVOICES (auto-confirm online selling) ─────
+// Admin creates an invoice → gets a shareable link. Buyer pays (MoMo),
+// clicks "I've paid", and access is granted instantly (code revealed).
+app.get("/api/invoices/:code", (req, res) => {
+  const inv = readJSON("invoices.json").find((i) => i.code === String(req.params.code).toUpperCase());
+  if (!inv) return res.status(404).json({ error: "Invoice not found" });
+  const { phone } = req.query;
+  const isPayer = inv.status === "paid" && phone && String(phone).replace(/\D/g, "") === String(inv.payer?.phone || "").replace(/\D/g, "");
+  res.json({
+    code: inv.code, title: inv.title, amount: inv.amount, description: inv.description,
+    payeeName: inv.payeeName, payeeNumber: inv.payeeNumber,
+    status: inv.status, paidAt: inv.paidAt || null,
+    hasGrant: !!inv.grantCodeId,
+    grant: isPayer ? inv.grantCode : null,
+  });
+});
+
+// Buyer confirms payment → auto-grant (code revealed immediately)
+app.post("/api/invoices/:code/confirm", (req, res) => {
+  const invoices = readJSON("invoices.json");
+  const inv = invoices.find((i) => i.code === String(req.params.code).toUpperCase());
+  if (!inv) return res.status(404).json({ error: "Invoice not found" });
+  if (inv.status !== "open") return res.status(400).json({ error: inv.status === "paid" ? "This invoice is already paid" : "This invoice was revoked" });
+  const { name, phone, reference } = req.body;
+  if (!name || !phone) return res.status(400).json({ error: "Your name and phone number are required" });
+  const cleanPhone = String(phone).replace(/\s+/g, "");
+  if (!/^\d{9,10}$/.test(cleanPhone)) return res.status(400).json({ error: "Enter a valid phone number (e.g. 0971234567)" });
+  inv.status = "paid";
+  inv.paidAt = new Date().toISOString();
+  inv.payer = { name: String(name).trim(), phone: cleanPhone, reference: String(reference || "").trim() };
+  if (inv.grantCodeId) {
+    const codes = readJSON("codes.json");
+    const rec = codes.find((c) => c.id === inv.grantCodeId);
+    if (rec && rec.status === "unused") {
+      rec.status = "paid";
+      rec.invoiceId = inv.id;
+      writeJSON("codes.json", codes);
+    }
+    inv.grantCode = rec ? rec.code : null;
+  }
+  writeJSON("invoices.json", invoices);
+  const admins = readJSON("users.json").filter((u) => ["super_admin", "omni_super", "admin"].includes(u.role));
+  admins.forEach((a) => addNotification(a.id, "invoice_paid", "Sale Completed 💰", `K${inv.amount} paid for "${inv.title}" by ${inv.payer.name} (${inv.payer.phone}) — auto-granted.`, "/sell"));
+  adminLog("invoice_paid", "", inv.payer.name, `K${inv.amount} for "${inv.title}" auto-confirmed (${inv.payer.phone})`);
+  res.json({ ok: true, message: "Payment confirmed — access granted!", grant: inv.grantCode || null });
+});
+
+app.get("/api/admin/invoices", adminAuth, (req, res) => {
+  res.json(readJSON("invoices.json").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+});
+
+app.post("/api/admin/invoices", adminAuth, (req, res) => {
+  const { title, amount, description, plan, payeeName, payeeNumber } = req.body;
+  if (!title || !amount || !(Number(amount) > 0)) return res.status(400).json({ error: "Title and amount (ZMW) are required" });
+  const plans = ["k10", "k20", "k30", "k50", "k100", "k200"];
+  const useGrant = plans.includes(plan);
+  let grantCodeId = null;
+  if (useGrant) {
+    const codes = readJSON("codes.json");
+    let code = genAccessCode();
+    while (codes.find((c) => c.code === code)) code = genAccessCode();
+    const rec = { id: uuidv4(), code, plan, status: "unused", usedBy: null, usedAt: null, invoiceId: null, createdAt: new Date().toISOString() };
+    codes.push(rec);
+    writeJSON("codes.json", codes);
+    grantCodeId = rec.id;
+  }
+  const inv = {
+    id: uuidv4(),
+    code: String(Math.random().toString(36).slice(2, 8)).toUpperCase(),
+    title: String(title).trim(),
+    amount: Number(amount),
+    description: String(description || "").trim(),
+    plan: useGrant ? plan : null,
+    grantCodeId,
+    grantCode: null,
+    status: "open",
+    payeeName: String(payeeName || "JohnWeb").trim(),
+    payeeNumber: String(payeeNumber || "0771460648").trim(),
+    payer: null, paidAt: null,
+    createdBy: req.user.id, createdAt: new Date().toISOString(),
+  };
+  const invoices = readJSON("invoices.json");
+  invoices.push(inv);
+  writeJSON("invoices.json", invoices);
+  adminLog("invoice_created", req.user.id, req.user.name, `Invoice K${inv.amount} "${inv.title}" (${inv.code})`);
+  res.json({ invoice: inv, link: `${req.protocol}://${req.get("host")}/invoice/${inv.code}` });
+});
+
+app.post("/api/admin/invoices/:id/revoke", adminAuth, (req, res) => {
+  const invoices = readJSON("invoices.json");
+  const inv = invoices.find((i) => i.id === req.params.id);
+  if (!inv) return res.status(404).json({ error: "Invoice not found" });
+  if (inv.grantCodeId) {
+    const codes = readJSON("codes.json");
+    const rec = codes.find((c) => c.id === inv.grantCodeId);
+    if (rec) { rec.status = rec.status === "paid" ? "unused" : rec.status; rec.invoiceId = null; writeJSON("codes.json", codes); }
+  }
+  inv.status = "revoked";
+  writeJSON("invoices.json", invoices);
+  adminLog("invoice_revoked", req.user.id, req.user.name, `Revoked K${inv.amount} "${inv.title}"`);
+  res.json({ ok: true });
+});
+
+app.delete("/api/admin/invoices/:id", adminAuth, (req, res) => {
+  const invoices = readJSON("invoices.json");
+  const idx = invoices.findIndex((i) => i.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Invoice not found" });
+  const [removed] = invoices.splice(idx, 1);
+  writeJSON("invoices.json", invoices);
+  res.json({ ok: true, removed: removed.code });
 });
 
 // ─── ACCESS CODES (sell codes, students redeem) ─────────────
@@ -3773,7 +3885,7 @@ app.post("/api/usage/page-view", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json", "invoices.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });
