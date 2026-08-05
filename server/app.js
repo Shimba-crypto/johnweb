@@ -766,23 +766,47 @@ const PLANS = {
   k50: { price: 50, label: "K50", features: ["Everything in K30", "Become a teacher", "Create your own bots", "API access"] },
   k100: { price: 100, label: "K100", features: ["Everything in K50", "Admin panel", "Create MOD bots", "Priority support", "Custom branding"] },
   k200: { price: 200, label: "K200 Teacher", features: ["Teacher account", "Grade student answers", "Create quizzes", "Manage a class", "View student progress", "Everything in K100"] },
+  t1d: { price: 0, label: "1-Day Trial", trialDays: 1, features: ["Full premium access for 1 day", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
+  t3d: { price: 0, label: "3-Day Trial", trialDays: 3, features: ["Full premium access for 3 days", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
+  t1w: { price: 0, label: "1-Week Trial", trialDays: 7, features: ["Full premium access for 1 week", "All past papers with answers", "Quizzes, flashcards, exam mode"] },
 };
+
+const TRIAL_DAYS = { t1d: 1, t3d: 3, t1w: 7 };
 
 app.get("/api/pricing", (req, res) => {
   res.json(Object.entries(PLANS).map(([id, plan]) => ({ id, ...plan })));
 });
 
-// Set a user's subscription (30-day period) and clear the expiry-notice flag
-function setSubscription(user, plan) {
+// Set a user's subscription (default 30-day period) and clear the expiry-notice flag
+function setSubscription(user, plan, days) {
   user.subscription = plan;
   if (plan && plan !== "free") {
-    user.subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    user.subscriptionExpiresAt = new Date(Date.now() + (days || 30) * 24 * 60 * 60 * 1000).toISOString();
     user.expiryNotified = false;
   } else {
     user.subscriptionExpiresAt = null;
     user.expiryNotified = false;
   }
 }
+
+// One free trial per account: t1d / t3d / t1w
+app.post("/api/trial", auth, (req, res) => {
+  const { plan } = req.body;
+  if (!TRIAL_DAYS[plan]) return res.status(400).json({ error: "Trial must be t1d, t3d or t1w" });
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.user.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  const u = users[idx];
+  if (u.trialUsed) return res.status(400).json({ error: "You have already used your free trial" });
+  if (u.subscription && u.subscription !== "free" && u.subscriptionExpiresAt && new Date(u.subscriptionExpiresAt).getTime() > Date.now()) {
+    return res.status(400).json({ error: "You already have an active plan" });
+  }
+  u.trialUsed = true;
+  setSubscription(u, plan, TRIAL_DAYS[plan]);
+  writeJSON("users.json", users);
+  addNotification(u.id, "trial_started", "Free Trial Started", `Your ${PLANS[plan].label} is active! Enjoy premium features.`, "/browse");
+  res.json({ message: `Your ${PLANS[plan].label} is active!`, plan, days: TRIAL_DAYS[plan], expiresAt: u.subscriptionExpiresAt });
+});
 
 // Notify users whose subscription is expiring (or has expired)
 export function checkSubscriptions() {
@@ -2856,44 +2880,64 @@ app.get("/api/invoices/:code", (req, res) => {
   const inv = readJSON("invoices.json").find((i) => i.code === String(req.params.code).toUpperCase());
   if (!inv) return res.status(404).json({ error: "Invoice not found" });
   const { phone } = req.query;
-  const isPayer = inv.status === "paid" && phone && String(phone).replace(/\D/g, "") === String(inv.payer?.phone || "").replace(/\D/g, "");
+  const claims = inv.claims || [];
+  const isPayer = claims.some((c) => phone && String(phone).replace(/\D/g, "") === String(c.phone || "").replace(/\D/g, ""));
   res.json({
     code: inv.code, title: inv.title, amount: inv.amount, description: inv.description,
     payeeName: inv.payeeName, payeeNumber: inv.payeeNumber,
     status: inv.status, paidAt: inv.paidAt || null,
-    hasGrant: !!inv.grantCodeId,
-    grant: isPayer ? inv.grantCode : null,
+    hasGrant: !!(inv.grantCodeId || claims.length),
+    maxClaims: inv.maxClaims || 1, claimsCount: claims.length,
+    grant: isPayer ? claims.find((c) => String(c.phone).replace(/\D/g, "") === String(phone).replace(/\D/g, ""))?.code || null : null,
   });
 });
 
-// Buyer confirms payment → auto-grant (code revealed immediately)
+// Buyer confirms payment → auto-grant (access code revealed immediately).
+// Invoices are multi-use: each payer gets a fresh code until maxClaims is reached.
 app.post("/api/invoices/:code/confirm", (req, res) => {
   const invoices = readJSON("invoices.json");
   const inv = invoices.find((i) => i.code === String(req.params.code).toUpperCase());
   if (!inv) return res.status(404).json({ error: "Invoice not found" });
-  if (inv.status !== "open") return res.status(400).json({ error: inv.status === "paid" ? "This invoice is already paid" : "This invoice was revoked" });
+  if (inv.status === "revoked") return res.status(400).json({ error: "This invoice was revoked" });
+  const claims = inv.claims || [];
+  const max = inv.maxClaims || 1;
+  if (claims.length >= max) return res.status(400).json({ error: "This link has sold out — ask the seller for a new link" });
   const { name, phone, reference } = req.body;
   if (!name || !phone) return res.status(400).json({ error: "Your name and phone number are required" });
   const cleanPhone = String(phone).replace(/\s+/g, "");
   if (!/^\d{9,10}$/.test(cleanPhone)) return res.status(400).json({ error: "Enter a valid phone number (e.g. 0971234567)" });
-  inv.status = "paid";
-  inv.paidAt = new Date().toISOString();
-  inv.payer = { name: String(name).trim(), phone: cleanPhone, reference: String(reference || "").trim() };
-  if (inv.grantCodeId) {
-    const codes = readJSON("codes.json");
+
+  // Each claim gets its own fresh code
+  const codes = readJSON("codes.json");
+  let code = null;
+  if (inv.grantCodeId && claims.length === 0) {
     const rec = codes.find((c) => c.id === inv.grantCodeId);
     if (rec && rec.status === "unused") {
-      rec.status = "paid";
-      rec.invoiceId = inv.id;
+      rec.status = "paid"; rec.invoiceId = inv.id;
       writeJSON("codes.json", codes);
+      code = rec.code;
     }
-    inv.grantCode = rec ? rec.code : null;
   }
+  if (!code) {
+    let c = genAccessCode();
+    while (codes.find((x) => x.code === c)) c = genAccessCode();
+    const rec = { id: uuidv4(), code: c, plan: inv.plan || "k50", status: "paid", usedBy: null, usedAt: null, invoiceId: inv.id, createdAt: new Date().toISOString() };
+    codes.push(rec);
+    writeJSON("codes.json", codes);
+    code = c;
+  }
+
+  const now = new Date().toISOString();
+  claims.push({ name: String(name).trim(), phone: cleanPhone, reference: String(reference || "").trim(), code, paidAt: now });
+  inv.claims = claims;
+  inv.status = "paid";
+  inv.paidAt = inv.paidAt || now;
+  inv.payer = inv.payer || claims[0];
   writeJSON("invoices.json", invoices);
   const admins = readJSON("users.json").filter((u) => ["super_admin", "omni_super", "admin"].includes(u.role));
-  admins.forEach((a) => addNotification(a.id, "invoice_paid", "Sale Completed 💰", `K${inv.amount} paid for "${inv.title}" by ${inv.payer.name} (${inv.payer.phone}) — auto-granted.`, "/sell"));
-  adminLog("invoice_paid", "", inv.payer.name, `K${inv.amount} for "${inv.title}" auto-confirmed (${inv.payer.phone})`);
-  res.json({ ok: true, message: "Payment confirmed — access granted!", grant: inv.grantCode || null });
+  admins.forEach((a) => addNotification(a.id, "invoice_paid", "Sale Completed 💰", `K${inv.amount} paid for "${inv.title}" by ${claims[claims.length - 1].name} (${cleanPhone}) — code granted.`, "/sell"));
+  adminLog("invoice_paid", "", claims[claims.length - 1].name, `K${inv.amount} for "${inv.title}" auto-confirmed (${cleanPhone})`);
+  res.json({ ok: true, message: "Payment confirmed — access granted!", grant: code, claimsRemaining: Math.max(0, max - claims.length) });
 });
 
 app.get("/api/admin/invoices", adminAuth, (req, res) => {
@@ -2901,7 +2945,7 @@ app.get("/api/admin/invoices", adminAuth, (req, res) => {
 });
 
 app.post("/api/admin/invoices", adminAuth, (req, res) => {
-  const { title, amount, description, plan, payeeName, payeeNumber } = req.body;
+  const { title, amount, description, plan, payeeName, payeeNumber, maxClaims } = req.body;
   if (!title || !amount || !(Number(amount) > 0)) return res.status(400).json({ error: "Title and amount (ZMW) are required" });
   const plans = ["k10", "k20", "k30", "k50", "k100", "k200"];
   const useGrant = plans.includes(plan);
@@ -2924,6 +2968,8 @@ app.post("/api/admin/invoices", adminAuth, (req, res) => {
     plan: useGrant ? plan : null,
     grantCodeId,
     grantCode: null,
+    maxClaims: Math.max(1, Math.min(Number(maxClaims) || 1, 1000)),
+    claims: [],
     status: "open",
     payeeName: String(payeeName || "JohnWeb").trim(),
     payeeNumber: String(payeeNumber || "0771460648").trim(),
@@ -2933,7 +2979,7 @@ app.post("/api/admin/invoices", adminAuth, (req, res) => {
   const invoices = readJSON("invoices.json");
   invoices.push(inv);
   writeJSON("invoices.json", invoices);
-  adminLog("invoice_created", req.user.id, req.user.name, `Invoice K${inv.amount} "${inv.title}" (${inv.code})`);
+  adminLog("invoice_created", req.user.id, req.user.name, `Invoice K${inv.amount} "${inv.title}" (${inv.code}) ×${inv.maxClaims}`);
   res.json({ invoice: inv, link: `${req.protocol}://${req.get("host")}/invoice/${inv.code}` });
 });
 
@@ -2941,14 +2987,18 @@ app.post("/api/admin/invoices/:id/revoke", adminAuth, (req, res) => {
   const invoices = readJSON("invoices.json");
   const inv = invoices.find((i) => i.id === req.params.id);
   if (!inv) return res.status(404).json({ error: "Invoice not found" });
-  if (inv.grantCodeId) {
-    const codes = readJSON("codes.json");
-    const rec = codes.find((c) => c.id === inv.grantCodeId);
-    if (rec) { rec.status = rec.status === "paid" ? "unused" : rec.status; rec.invoiceId = null; writeJSON("codes.json", codes); }
-  }
   inv.status = "revoked";
   writeJSON("invoices.json", invoices);
   adminLog("invoice_revoked", req.user.id, req.user.name, `Revoked K${inv.amount} "${inv.title}"`);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/invoices/:id/reopen", adminAuth, (req, res) => {
+  const invoices = readJSON("invoices.json");
+  const inv = invoices.find((i) => i.id === req.params.id);
+  if (!inv) return res.status(404).json({ error: "Invoice not found" });
+  inv.status = "open";
+  writeJSON("invoices.json", invoices);
   res.json({ ok: true });
 });
 
@@ -2971,7 +3021,7 @@ function genAccessCode() {
 
 app.post("/api/admin/codes", adminAuth, (req, res) => {
   const { plan, count } = req.body;
-  const plans = ["k10", "k20", "k30", "k50", "k100"];
+  const plans = ["k10", "k20", "k30", "k50", "k100", "k200", "t1d", "t3d", "t1w"];
   if (!plans.includes(plan)) return res.status(400).json({ error: "Invalid plan" });
   const n = Math.min(count || 1, 100);
   const codes = readJSON("codes.json");
@@ -3006,7 +3056,7 @@ app.post("/api/codes/redeem", (req, res) => {
   if (idx === -1) return res.status(404).json({ error: "User not found" });
   rec.status = "used"; rec.usedBy = userId; rec.usedAt = new Date().toISOString();
   writeJSON("codes.json", codes);
-  setSubscription(users[idx], rec.plan);
+  setSubscription(users[idx], rec.plan, TRIAL_DAYS[rec.plan]);
   writeJSON("users.json", users);
   addNotification(userId, "code_redeemed", "Subscription Activated", `Your ${rec.plan} plan is now active!`, "/profile");
   res.json({ message: `Plan ${rec.plan} activated!`, plan: rec.plan });

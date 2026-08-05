@@ -9,12 +9,14 @@ export default function Sell() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [plan, setPlan] = useState("k50");
+  const [plan, setPlan] = useState("k200");
+  const [maxClaims, setMaxClaims] = useState("1");
   const [payeeNumber, setPayeeNumber] = useState("0771460648");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<string | null>(null);
+  const [trialMsg, setTrialMsg] = useState("");
 
   useEffect(() => {
     try { setUser(JSON.parse(localStorage.getItem("user") || "null")); } catch {}
@@ -51,7 +53,7 @@ export default function Sell() {
       const t = localStorage.getItem("token");
       const r = await fetch("/api/admin/invoices", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ title, amount: Number(amount), description, plan, payeeNumber }),
+        body: JSON.stringify({ title, amount: Number(amount), description, plan, payeeNumber, maxClaims: Number(maxClaims) || 1 }),
       });
       const d = await r.json();
       if (!r.ok) { setErr(d.error || "Failed to create"); setBusy(false); return; }
@@ -64,10 +66,34 @@ export default function Sell() {
   };
 
   const revoke = async (id: string) => {
-    if (!confirm("Revoke this invoice? Its code becomes unused again.")) return;
+    if (!confirm("Close this link? New sales stop (already-paid codes stay valid).")) return;
     const t = localStorage.getItem("token");
     await fetch(`/api/admin/invoices/${id}/revoke`, { method: "POST", headers: { Authorization: `Bearer ${t}` } });
     load();
+  };
+
+  const reopen = async (id: string) => {
+    const t = localStorage.getItem("token");
+    await fetch(`/api/admin/invoices/${id}/reopen`, { method: "POST", headers: { Authorization: `Bearer ${t}` } });
+    load();
+  };
+
+  const makeTrialCodes = async () => {
+    const d = prompt("How many trial codes? (e.g. 10)");
+    if (!d) return;
+    const n = Math.min(Number(d) || 1, 100);
+    const p = prompt("Trial length: 1 = 1 day, 3 = 3 days, 7 = 1 week");
+    const plan = p === "1" ? "t1d" : p === "7" ? "t1w" : "t3d";
+    const t = localStorage.getItem("token");
+    const r = await fetch("/api/admin/codes", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+      body: JSON.stringify({ plan, count: n }),
+    });
+    const data = await r.json();
+    if (data.codes) {
+      setTrialMsg(`${n} ${plan} codes: ${data.codes.join(", ")}`);
+      navigator.clipboard.writeText(data.codes.join("\n")).catch(() => {});
+    } else setTrialMsg(data.error || "Failed");
   };
 
   const remove = async (id: string) => {
@@ -105,6 +131,13 @@ export default function Sell() {
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
+            <label className="block text-sm font-medium mb-1">Pay into this MoMo number</label>
+            <input value={payeeNumber} onChange={(e) => setPayeeNumber(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="0771460648" />
+            <p className="text-xs text-gray-400 mt-1">The number buyers send the money to.</p>
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm font-medium mb-1">Auto-grant access code</label>
             <select value={plan} onChange={(e) => setPlan(e.target.value)} className="w-full p-2 border rounded-lg">
               <option value="k200">Yes — K200 teacher code</option>
@@ -116,13 +149,18 @@ export default function Sell() {
             <p className="text-xs text-gray-400 mt-1">The buyer gets this code instantly after paying, and redeems it in the app.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Pay into this MoMo number</label>
-            <input value={payeeNumber} onChange={(e) => setPayeeNumber(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="0771460648" />
+            <label className="block text-sm font-medium mb-1">How many sales on this link?</label>
+            <input type="number" min="1" value={maxClaims} onChange={(e) => setMaxClaims(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="1" />
+            <p className="text-xs text-gray-400 mt-1">1 = one buyer. 50 = share it widely; each payer gets a fresh code.</p>
           </div>
         </div>
         <button type="submit" disabled={busy} className="bg-green-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-green-700 disabled:opacity-60">
           {busy ? "Creating…" : "Create Payment Link"}
         </button>
+        <button type="button" onClick={makeTrialCodes} className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700">
+          🎁 Generate Free Trial Codes
+        </button>
+        {trialMsg && <p className="text-sm text-green-700">{trialMsg}</p>}
         {created && (
           <div className="bg-gray-50 border rounded-lg p-4">
             <p className="text-sm text-gray-500 mb-1">Your link (share this):</p>
@@ -147,15 +185,16 @@ export default function Sell() {
                   {inv.status === "paid" ? "PAID" : inv.status === "revoked" ? "REVOKED" : "OPEN"}
                 </span>
               </div>
-              <p className="text-sm text-gray-500">K{inv.amount} · code {inv.code} · {inv.createdAt?.slice(0, 10)}</p>
-              {inv.payer && (
-                <p className="text-xs text-green-700 mt-0.5">💰 Paid by {inv.payer.name} ({inv.payer.phone}) {inv.payer.reference ? `· ref ${inv.payer.reference}` : ""} on {inv.paidAt?.slice(0, 10)}</p>
-              )}
+              <p className="text-sm text-gray-500">K{inv.amount} · code {inv.code} · {inv.createdAt?.slice(0, 10)} · sold {(inv.claims || []).length}/{inv.maxClaims || 1}</p>
+              {(inv.claims || []).map((c: any, i: number) => (
+                <p key={i} className="text-xs text-green-700 mt-0.5">💰 #{i + 1} {c.name} ({c.phone}){c.reference ? ` · ref ${c.reference}` : ""} on {c.paidAt?.slice(0, 10)} — code <b className="select-all">{c.code}</b></p>
+              ))}
             </div>
             <div className="flex items-center gap-2">
               <a href={`/invoice/${inv.code}`} target="_blank" rel="noreferrer" className="text-sm text-green-700 font-medium hover:underline">Open</a>
               <button type="button" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/invoice/${inv.code}`); setMsg(`Link for ${inv.code} copied!`); }} className="bg-gray-800 text-white px-3 py-1.5 rounded-lg text-sm">Copy</button>
-              {inv.status !== "revoked" && <button type="button" onClick={() => revoke(inv.id)} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">Revoke</button>}
+              {inv.status !== "revoked" && <button type="button" onClick={() => revoke(inv.id)} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm">Close</button>}
+              {inv.status === "revoked" && <button type="button" onClick={() => reopen(inv.id)} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm">Reopen</button>}
               <button type="button" onClick={() => remove(inv.id)} className="text-gray-400 hover:text-red-600 text-sm">✕</button>
             </div>
           </div>
