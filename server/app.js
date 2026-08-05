@@ -331,16 +331,33 @@ app.post("/api/auth/refresh", (req, res) => {
   const tokens = readJSON("refresh-tokens.json");
   const idx = tokens.findIndex((t) => t.id === refreshToken);
   if (idx === -1) return res.status(401).json({ error: "Invalid refresh token" });
-  if (tokens[idx].expires < Date.now()) {
+  const tok = tokens[idx];
+  if (tok.expires < Date.now()) {
     tokens.splice(idx, 1);
     writeJSON("refresh-tokens.json", tokens);
     return res.status(401).json({ error: "Refresh token expired" });
   }
-  const user = readJSON("users.json").find((u) => u.id === tokens[idx].userId);
+  const user = readJSON("users.json").find((u) => u.id === tok.userId);
   if (!user) return res.status(401).json({ error: "User not found" });
-  tokens.splice(idx, 1); // rotate: revoke old
-  writeJSON("refresh-tokens.json", tokens);
+
+  // Multi-tab grace period: if this token was already rotated within the last
+  // 60s (a second tab raced the same refresh), reuse the replacement token
+  // instead of rejecting — prevents "logged out" on phones with 2+ tabs.
+  if (tok.rotatedTo && tok.rotatedAt && Date.now() - tok.rotatedAt < 60 * 1000) {
+    const replacement = tokens.find((t) => t.id === tok.rotatedTo);
+    if (replacement && replacement.expires > Date.now()) {
+      const newTokens = issueTokens(user);
+      return res.json({ token: newTokens.accessToken, refreshToken: replacement.id, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
+    }
+  }
+
+  // Rotate: mark old token (kept briefly for the grace window) and issue a new one.
   const newTokens = issueTokens(user);
+  tok.rotatedAt = Date.now();
+  tok.rotatedTo = newTokens.refreshToken;
+  // Prune: drop fully-expired tokens and rotated tokens older than the grace window.
+  const pruned = tokens.filter((t) => t.expires > Date.now() && (!t.rotatedAt || Date.now() - t.rotatedAt < 60 * 1000));
+  writeJSON("refresh-tokens.json", pruned);
   res.json({ token: newTokens.accessToken, refreshToken: newTokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
