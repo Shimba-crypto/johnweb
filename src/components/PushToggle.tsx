@@ -23,9 +23,22 @@ export default function PushToggle({ token }: { token: string }) {
   };
 
   useEffect(() => {
-    const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    const sw = "serviceWorker" in navigator;
+    const pm = "PushManager" in window;
+    const nt = "Notification" in window;
+    const ok = sw && pm && nt;
     setSupported(ok);
-    if (!ok) { setMsg("Your browser does not support push notifications."); return; }
+    if (!ok) {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isIOS && (!sw || !pm)) {
+        setMsg("On iPhone/iPad, notifications only work after adding JohnWeb to your Home Screen: tap Share → Add to Home Screen, then open it from there and try again. (iOS 16.4+)");
+      } else if (!sw) {
+        setMsg("This looks like an in-app browser (Facebook/WhatsApp/Telegram) or private mode — they block push notifications. Open JohnWeb in Chrome or Safari instead.");
+      } else {
+        setMsg("Your browser does not support push notifications. Try a newer Chrome, Firefox or Safari (or non-private mode).");
+      }
+      return;
+    }
     // Check current state WITHOUT prompting for permission
     if (Notification.permission !== "granted") return;
     navigator.serviceWorker.ready.then(async (reg) => {
