@@ -152,6 +152,32 @@ export default function Settings() {
             <p className="text-sm text-gray-500 mb-3">If you suspect your account was compromised, revoke all sessions immediately. You'll need to log in again.</p>
             <button onClick={logoutAll} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">Log Out of All Devices</button>
           </div>
+          <div className="bg-white p-6 rounded-xl border shadow-sm">
+            <h3 className="font-semibold mb-1">🗑️ Clear App Cache</h3>
+            <p className="text-sm text-gray-500 mb-3">If the app looks outdated, freezes, or buttons stop working, clear the saved cache. You'll stay logged in and the page will reload.</p>
+            <button
+              onClick={async () => {
+                if (!confirm("Clear the app cache and reload? You will stay logged in.")) return;
+                setMsg("Clearing cache…");
+                try {
+                  const regs = await navigator.serviceWorker?.getRegistrations();
+                  if (regs) await Promise.all(regs.map((r) => r.unregister()));
+                  if (window.caches) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((k) => caches.delete(k)));
+                  }
+                  localStorage.removeItem("jwWantsCacheReset");
+                  localStorage.setItem("jwWantsCacheReset", "1");
+                  location.reload();
+                } catch (err) {
+                  setMsg("Could not clear cache: " + (err as Error).message);
+                }
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm"
+            >
+              Clear App Cache
+            </button>
+          </div>
           {user.role === "student" && (
             <div className="bg-white p-6 rounded-xl border shadow-sm">
               <h3 className="font-semibold mb-1">🧑‍🏫 Become a Teacher</h3>
