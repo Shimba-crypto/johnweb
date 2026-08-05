@@ -12,19 +12,25 @@ function storeUser(userData: any) {
 async function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
     const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) return Promise.reject("no refresh token");
+    if (!refreshToken) return Promise.reject({ invalid: true });
     refreshPromise = origFetch("/api/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     })
       .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok || !data.token) throw new Error("refresh failed");
+        const data = await r.json().catch(() => ({}));
+        if (r.status === 401) throw { invalid: true }; // refresh token expired/revoked → real logout
+        if (!r.ok || !data.token) throw { invalid: false }; // transient server error → keep session
         localStorage.setItem("token", data.token);
         localStorage.setItem("refreshToken", data.refreshToken || "");
         storeUser(data.user);
         return data.token;
+      })
+      .catch((e) => {
+        // Network failure (offline, timeout): keep the session, don't log out.
+        if (e && e.invalid === undefined) throw { invalid: false };
+        throw e;
       })
       .finally(() => { refreshPromise = null; });
   }
@@ -47,10 +53,10 @@ export function installAuthFetch() {
         const headers2: any = { ...(init?.headers || {}) };
         headers2["Authorization"] = `Bearer ${newToken}`;
         res = await origFetch(input, { ...init, headers: headers2 });
-      } catch {
-        // only clear login if refresh genuinely failed (no other refresh in flight saved us)
-        const stillThere = localStorage.getItem("refreshToken");
-        if (stillThere) {
+      } catch (e: any) {
+        // Only log out when the refresh token is genuinely invalid/revoked.
+        // Transient network/server errors must NOT clear the session (mobile data is flaky).
+        if (e && e.invalid) {
           localStorage.removeItem("token");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
