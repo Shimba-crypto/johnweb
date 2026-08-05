@@ -143,6 +143,7 @@ export default function Layout() {
         <Link to="/classes" className={linkCls("/classes")}>🏫 <span>Classes</span></Link>
         <Link to="/bots" className={linkCls("/bots")}>🤖 <span>AI Tutors</span></Link>
         <Link to="/news" className={linkCls("/news")}>📰 <span>News</span></Link>
+        <Link to="/install" className={linkCls("/install")}>📲 <span>Get the App</span></Link>
 
         <SectionLabel>Account</SectionLabel>
         {user ? (

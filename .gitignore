@@ -41,3 +41,5 @@ next-env.d.ts
 /dist
 .atlas-credentials.env
 *.env
+/installers
+/public/install/*.exe
