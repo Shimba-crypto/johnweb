@@ -15,7 +15,7 @@ function detectOS(): Platform {
 
 const INSTALLERS: Record<Platform, { file?: string; label: string; desc: string; btn: string; note?: string } | null> = {
   android: { file: "/install/johnweb.apk", label: "JohnWeb for Android", desc: "APK file for Android phones and tablets (Android 5+)", btn: "Download APK", note: "After downloading, open the file and allow installation from unknown sources." },
-  windows: { file: "/installers/johnweb-setup-windows.exe", label: "JohnWeb for Windows", desc: "Windows installer (EXE) for PC and laptop", btn: "Download Installer", note: "Run the installer, then launch JohnWeb from your desktop." },
+  windows: { file: "/install/johnweb-setup-windows.exe", label: "JohnWeb for Windows", desc: "Windows installer (EXE) for PC and laptop", btn: "Download Installer", note: "Run the installer, then launch JohnWeb from your desktop." },
   macos: null,
   linux: { label: "JohnWeb for Linux", desc: "Run JohnWeb as a web app or install the Kali/Linux package", btn: "Open JohnWeb", note: "Linux desktop packages are available on request. For now, add the site to your browser's apps or use the web version." },
   ios: { label: "JohnWeb for iPhone/iPad", desc: "Install as a home-screen app (PWA)", btn: "Install App", note: "In Safari, tap Share → Add to Home Screen. JohnWeb works fully offline." },
