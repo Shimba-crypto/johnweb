@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { getSavedPapers } from "../lib/offline";
 
 interface Paper {
   id: string;
@@ -30,9 +31,12 @@ export default function Browse() {
   const [search, setSearch] = useState("");
   const [topicResults, setTopicResults] = useState<any[]>([]);
   const [topicLoading, setTopicLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savedOnly, setSavedOnly] = useState(false);
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
+    setSavedIds(new Set(getSavedPapers().map((p) => p.id)));
   }, []);
 
   useEffect(() => {
@@ -54,6 +58,7 @@ export default function Browse() {
     if (selectedYear && String(p.year) !== selectedYear) return false;
     if (selectedType && p.examType !== selectedType) return false;
     if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.subjectName?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (savedOnly && !savedIds.has(p.id)) return false;
     return true;
   });
 
@@ -103,6 +108,13 @@ export default function Browse() {
           <option value="external">External</option>
           <option value="internal">Internal</option>
         </select>
+        <button
+          onClick={() => setSavedOnly(!savedOnly)}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${savedOnly ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+          title="Show only papers saved for offline study"
+        >
+          📴 Saved ({savedIds.size})
+        </button>
       </div>
 
       {topicResults.length > 0 && (
@@ -140,6 +152,9 @@ export default function Browse() {
             <div className="flex gap-3 mt-2 text-sm text-gray-500">
               <span>{paper.year}</span>
               <span className="capitalize">{paper.examType}</span>
+              {savedIds.has(paper.id) && (
+                <span className="text-green-700 font-medium">✅ Saved offline</span>
+              )}
             </div>
           </Link>
         ))}

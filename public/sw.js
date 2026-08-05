@@ -42,8 +42,21 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
 
-  // API requests: always network (no stale data)
-  if (url.pathname.startsWith("/api/")) return;
+  // API requests: always network (no stale data), EXCEPT offline paper bundles
+  // which are network-first with a cached fallback so saved papers open without data
+  if (url.pathname.startsWith("/api/")) {
+    if (/^\/api\/papers\/[^/]+\/offline$/.test(url.pathname)) {
+      e.respondWith(
+        fetch(e.request)
+          .then((res) => {
+            if (res.ok) { const copy = res.clone(); caches.open("johnweb-offline-papers").then((c) => c.put(e.request, copy)); }
+            return res;
+          })
+          .catch(() => caches.match(e.request).then((m) => m || Response.error()))
+      );
+    }
+    return;
+  }
 
   // Navigation (page loads): network-first, fall back to cached shell for offline
   if (e.request.mode === "navigate") {

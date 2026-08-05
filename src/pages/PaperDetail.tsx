@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
+import { isSaved, savePaper, removePaper } from "../lib/offline";
 
 interface Question {
   id: string;
@@ -34,6 +35,8 @@ export default function PaperDetail() {
   const [started, setStarted] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [savedOffline, setSavedOffline] = useState(false);
+  const [savingOffline, setSavingOffline] = useState(false);
 
   // Refs keep the timer's auto-submit using the LATEST answers/results (no stale closures)
   const answersRef = useRef(answers);
@@ -45,17 +48,26 @@ export default function PaperDetail() {
 
   const downloadPDF = () => window.print();
 
-  const downloadOffline = () => {
-    fetch(`/api/papers/${id}/offline`).then((r) => r.blob()).then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `${id}-offline.json`; a.click();
-      URL.revokeObjectURL(url);
-    });
+  const toggleOffline = async () => {
+    if (savingOffline) return;
+    setSavingOffline(true);
+    if (savedOffline) {
+      await removePaper(id || "");
+      setSavedOffline(false);
+      alert("Removed from offline. The paper will need data to open again.");
+    } else {
+      const ok = await savePaper({ id: id || "", title: paper?.title || "Paper", year: paper?.year || 0, grade: paper?.grade || "", subject: paper?.examType });
+      setSavedOffline(ok);
+      if (ok) alert("✅ Saved for offline study — open it anytime, even without data.");
+      else alert("Could not save. Check your connection and try again.");
+    }
+    setSavingOffline(false);
   };
 
   useEffect(() => {
     fetch(`/api/papers/${id}`).then((r) => r.json()).then(setPaper);
     setToken(localStorage.getItem("token"));
+    setSavedOffline(isSaved(id || ""));
   }, [id]);
 
   // Auto-start the timer as soon as the paper loads
@@ -225,8 +237,8 @@ export default function PaperDetail() {
             <p className="text-gray-500">{paper.year} | {paper.description}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={downloadOffline} className="hidden sm:flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-100 text-sm">
-              📥 Offline
+            <button onClick={toggleOffline} disabled={savingOffline} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition ${savedOffline ? "bg-green-600 text-white hover:bg-green-700" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>
+              {savingOffline ? "⏳ Saving…" : savedOffline ? "✅ Saved offline" : "📥 Save offline"}
             </button>
             <button onClick={downloadPDF} className="hidden sm:flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>

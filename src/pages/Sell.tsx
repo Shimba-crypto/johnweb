@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePageTitle } from "../lib/usePageTitle";
 import { Link } from "react-router-dom";
+import SalesCharts from "../components/SalesCharts";
 
 export default function Sell() {
   usePageTitle("Sell");
@@ -112,6 +113,8 @@ export default function Sell() {
 
       {msg && <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg mb-4 text-sm">{msg}</div>}
       {err && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg mb-4 text-sm">{err}</div>}
+
+      <SalesCharts />
 
       <form onSubmit={create} className="bg-white p-6 rounded-xl border shadow-sm space-y-4 mb-8">
         <h2 className="font-semibold">Create a payment link</h2>

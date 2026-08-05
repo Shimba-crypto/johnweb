@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply saved theme before first paint (avoids white flash in dark mode)
+      try { if (localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JohnWeb - Zambian ECZ Past Papers & Practice</title>
     <meta name="description" content="Practice Zambian ECZ past papers with model answers, quizzes, AI tutors, and study tools for Grades 6 & 7. Free exam preparation platform made in Zambia." />
