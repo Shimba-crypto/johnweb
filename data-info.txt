@@ -1,0 +1,143 @@
+# JOHNWEB — HANDBOOK FOR THE NEXT AI
+Last updated: 2026-08-06 (by previous session)
+
+## WHO / WHAT
+JohnWeb = Zambian ECZ past-papers platform (Grades 6 & 7), made by a 12-year-old
+(user) + a partner named John. Live at: https://johnweb-qncu.onrender.com
+Repo: /home/shimba/food/pro (git, GitHub `Shimba-crypto/johnweb`, branch main).
+Owner works on Kali Linux (user "shimba"). The owner is a kid — be patient,
+explain clearly, and never act on money or legal stuff without parent involvement.
+
+## DEPLOYMENT
+- Render free tier (sleeps after ~15 min idle). A keep-alive cron pings
+  /api/stats every 10 min on this machine (crontab) so it stays warm.
+- Deploy = `git push` from /home/shimba/food/pro → wait ~90s → verify with curl.
+- Server code: /home/shimba/food/pro/server/app.js (single file, ~4000 lines).
+- Frontend: Vite + React 19 SPA, src/pages + src/components.
+- The app has TWO storage modes: file-backed (default) and Mongo-backed
+  (MONGODB_URI env). Live site runs in Mongo mode.
+- build = `npm run build` (also writes dist/version.json build stamp — used by
+  the PWA update pill).
+
+## CREDENTIALS / SECRETS (never commit, never weaken)
+- ADMIN_SECRET=REDACTED
+- OMNI_KEY=REDACTED
+- Mongo URI + creds: /home/shimba/Downloads/atlas-credentials.env (db: johnweb)
+- APK keystore: /home/shimba/food/android-build/johnweb.keystore,
+  alias johnweb, storepass/keypass: REDACTED
+
+## ADMIN ACCOUNTS
+- shimbacc@hotmail.com / REDACTED → Tr-John-X, omni_super (main admin)
+- silungwejohn24@gmail.com / REDACTED → Silungwe John, super_admin (partner)
+- shimba@hotmail.com → Shimshim-test, super_admin
+- hjsackmba@gmail.com was demoted to student (no admin)
+
+## CURRENCY & PLANS (all one-time payments, ZMW)
+- Plans: k10 Starter, k20 Basic, k30 Plus, k50 Pro, k100 Premium, k200 Teacher
+- REDEEM_DAYS in server/app.js: k10–k50 = 30 days, k100/k200 = 365 days
+- Trials: t1d/t3d/t1w, one per account
+- Live standing invoice links (multi-use, maxClaims 100, buyer pays MoMo to
+  0771460648 then taps "I've paid", gets fresh code JOHN-XXXX-XXXX-XXXX-XXXX):
+  - K200 Teacher → /invoice/DNLCFN
+  - K100 Student → /invoice/H3VMO1
+  - k10 → /invoice/S4IR74  k20 → /invoice/H94JHP  k30 → /invoice/SWD87K
+- Selling kit doc: /home/shimba/food/SELL/README.md
+- 2 spare t1d trial codes in the codes store:
+  JOHN-F3GL-HHWS-427S-SZ4B , JOHN-S6VW-VNQK-LFDE-KBKG
+
+## CURLED — terminal toolbox (runnable from anywhere)
+- /home/shimba/Projects/curled/curled (Node, ~30 commands), curled.py (Python
+  core), curled-c (C basics, gcc). Symlinked: /usr/local/bin/curled, curled-py,
+  curled-c.
+- Config: .curled.json (baseUrl + shimbacc/REDACTED + adminSecret). SECRET.
+- Commands: login/status, me, stats, subjects, papers, users, invoices, codes
+  (+codes make), backup, sync-mongo (needs MONGODB_URI sourced), broadcast,
+  watch (live sales monitor + Telegram alerts if configured), telegram test/report,
+  report, invoice make/close, export csv, find, ban/unban, promote, notify,
+  redeem (admin), diff, auto-backup, health/ping, logs, top, news, invite make,
+  answers check/export, quiz-results, page-views, cleanup (DANGER), paper add
+- Cron (this machine, crontab): every 10 min keep-alive ping to /api/stats;
+  06:00 cron-backup.sh = auto-backup + sync-live-to-mongo + telegram report.
+- Backups land in /home/shimba/Projects/curled/backups/ (auto-YYYY-MM-DD.json).
+- Admin login for CLI: /api/auth/login returns {token, refreshToken, user}.
+- STATS KEYS are students/teachers/bots/papers/questions/answers (no "users" key).
+- ADMIN /api/users STRIPS subscription fields → use /api/auth/me for those.
+- Backup JSON keys all end in ".json" (e.g. admin-logs.json) — remember this
+  when reading them! (page-views.json = per-day aggregates, NOT per-device.)
+
+## PWA / APP STATE
+- Service worker: public/sw.js, cache "johnweb-v4" (was v3; bump on major deploy
+  to force old PWA caches to self-destruct).
+- dist/version.json build stamp + orange "🔄 New version — Reload now" pill in
+  Layout.tsx so stale installed apps can self-heal. jw-version localStorage key.
+- Push notifications: VAPID key must be converted with base64ToUint8Array (fixed
+  in PushToggle.tsx). NO push inside WebView/Electron wrappers or iOS Safari
+  unless PWA installed to Home Screen (iOS 16.4+). PushToggle explains why it's
+  unsupported. 0 push subscribers so far — push test never completed.
+- Fetch polyfill inline in index.html head (XHR-based) for very old Android
+  WebViews that lack window.fetch — do NOT remove it.
+- Pre-paint theme script in index.html head (dark mode flash fix).
+- Offline study: src/lib/offline.ts — papers saved to Cache Storage
+  "johnweb-offline-papers" + localStorage manifest (jw-offline-papers key).
+  sw.js serves /api/papers/:id/offline network-first with cached fallback.
+- Login security (softened 2026-08-06): case-insensitive email lookup, lockout
+  only after 8 fails → 3 min. Failed logins logged as login_fail in
+  admin-logs.json (see `curled logs`). 423 = locked.
+
+## ANDROID APK / PLAY STORE
+- APK build (no Gradle): /home/shimba/food/android-build/build-apk.sh
+  (aapt2/d8/apksigner). Current: v1.3.0 (versionCode 4, targetSdk 35,
+  minSdk 21). Hosted on the site at /install/johnweb.apk (public/install/ —
+  MUST be re-copied there on every new APK build and committed).
+- v1.3.0 adds: clearCache(true) on launch + entry URL "?v=1.3.0" — FIXES stale
+  broken app problem (old WebView caches "immutable 1 year" hashed assets).
+- v1.2.0 added: new icon, splash theme (res/values/styles.xml + drawable/splash),
+  top progress bar, offline error screen with retry, external links → browser,
+  windowSoftInputMode=adjustResize (keyboard no longer covers login).
+- Play Store prep (done): signed AAB at /home/shimba/food/android-build/
+  play-store/johnweb.aab + app-icon-512.png + feature-graphic.png + 4 phone
+  screenshots (screen-*.png, 1080x2592) + store-listing.md (full listing text,
+  content rating answers, privacy URL = /privacy). AAB rebuilt via
+  aapt2 --proto-format + bundletool.jar (in android-build/).
+- NOT DONE: Play Console registration — needs parent + $25 one-time fee,
+  identity verification, then upload johnweb.aab. User hasn't done it yet.
+- Play Protect flags sideloaded WebView wrappers (esp. around login pages +
+  low installs) — publishing to Play Store is the real fix. Old v1.1.0 had
+  targetSdk 1 which made it worse.
+
+## KNOWN GOTCHAS
+- Mongo mode: backups/admin reads go through readJSON (Mongo-backed) — disk
+  files are NOT the source of truth on the live server. Backup bug fixed via
+  commit 9cbf173.
+- sync-live-to-mongo.mjs needs `set -a; source
+  /home/shimba/Downloads/atlas-credentials.env; set +a` first.
+- Render free tier = ephemeral disk + sleeps; keep-alive cron exists.
+- Page-views only records /api/usage/page-view aggregates; not per-device.
+- John's phone issue saga: was stale-cached app code (old index.html + old JS
+  in WebView HTTP cache, "immutable 1 year"). Browser worked, app said "Could
+  not reach the server." Fix = APK 1.3.0 clearCache + ?v= param. If login
+  problems recur, check `curled logs` for login_fail entries to see if the
+  attempt reached the server.
+
+## PENDING / NEXT STEPS
+1. John must update to APK 1.3.0 (or clear PWA data) and confirm login works.
+2. Play Store: parent registers console ($25), uploads johnweb.aab (assets ready).
+3. Push notification test: someone enables in real browser (Chrome/Firefox,
+   not the APK) → `curled broadcast "t" "m"` to verify.
+4. WhatsApp sales message for teacher/parent groups (user said "ok" but never
+   asked; menu item #1).
+5. Marketing features (built): ShareCard.tsx — students share branded score
+   cards on WhatsApp after finishing a paper. Not built: testimonials wall,
+   FAQ page, referral rewards.
+6. Optional: speed pass (bundle code-splitting, 587KB single chunk).
+7. Telegram alerts: user declined ("i will pass") — needs BotFather token if
+   ever wanted (config: telegram {token, chatId} in .curled.json).
+
+## FILE MAP (important)
+- /home/shimba/food/pro → main repo (server/app.js, src/, public/)
+- /home/shimba/food/SELL/README.md → selling kit
+- /home/shimba/food/android-build/ → APK/AAB build + play-store/ assets
+- /home/shimba/Projects/curled/ → CLI toolbox
+- /home/shimba/food/super omni admin/ → sync-live-to-mongo.mjs + backups
+- /home/shimba/Downloads/atlas-credentials.env → Mongo creds (SECRET)
+- /home/shimba/Projects/backdoor=db-DB/ → Data Studio tool (port 8787)
