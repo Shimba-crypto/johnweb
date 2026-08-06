@@ -11,8 +11,6 @@ function lastNDays(n: number): string[] {
 }
 
 function BarChart({ data, label, accent }: { data: { label: string; value: number; sub?: string }[]; label: string; accent?: string }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
   return (
     <div className="bg-white rounded-xl border shadow-sm p-4">
       <h3 className="font-semibold text-sm mb-3">{label}</h3>

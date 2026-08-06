@@ -6,6 +6,32 @@
       // Apply saved theme before first paint (avoids white flash in dark mode)
       try { if (localStorage.getItem("theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
     </script>
+    <script>
+      // Tiny fetch polyfill (XHR-based) so very old Android WebViews / browsers
+      // that lack the fetch API can still talk to the server.
+      if (!window.fetch) {
+        window.fetch = function (url, opts) {
+          opts = opts || {};
+          return new Promise(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(opts.method || "GET", url);
+            if (opts.headers) { for (var k in opts.headers) { try { xhr.setRequestHeader(k, opts.headers[k]); } catch (e) {} } }
+            xhr.responseType = "json";
+            xhr.onload = function () {
+              resolve({
+                ok: xhr.status >= 200 && xhr.status < 300,
+                status: xhr.status,
+                json: function () { return Promise.resolve(xhr.response || {}); },
+                text: function () { return Promise.resolve(xhr.response ? JSON.stringify(xhr.response) : ""); },
+                blob: function () { return Promise.reject(new Error("blob not supported on this browser")); }
+              });
+            };
+            xhr.onerror = function () { reject(new TypeError("Network request failed")); };
+            xhr.send(opts.body || null);
+          });
+        };
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JohnWeb - Zambian ECZ Past Papers & Practice</title>
     <meta name="description" content="Practice Zambian ECZ past papers with model answers, quizzes, AI tutors, and study tools for Grades 6 & 7. Free exam preparation platform made in Zambia." />
