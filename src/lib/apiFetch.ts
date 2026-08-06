@@ -1,8 +1,38 @@
 const origFetch = window.fetch.bind(window);
 let refreshPromise: Promise<string> | null = null;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const RETRY_CODES = new Set([429, 502, 503, 504]);
+const MAX_ATTEMPTS = 4;
+
 function storeUser(userData: any) {
   if (userData) patchUser(userData);
+}
+
+async function rawFetch(input: RequestInfo | URL, init?: RequestInit, attempt = 0): Promise<Response> {
+  const token = localStorage.getItem("token");
+  const adminSecret = localStorage.getItem("adminSecret");
+  const headers: any = { ...(init?.headers || {}) };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (adminSecret) headers["x-admin-secret"] = adminSecret;
+
+  try {
+    const res = await origFetch(input, { ...init, headers });
+    // Server is redeploying or just woke up (Render free tier): retry with backoff.
+    if (attempt < MAX_ATTEMPTS - 1 && RETRY_CODES.has(res.status)) {
+      await sleep(1200 * (attempt + 1));
+      return rawFetch(input, init, attempt + 1);
+    }
+    return res;
+  } catch (e) {
+    // Network-level failure (no signal, DNS, cold-start timeout): retry a few
+    // times before giving up — mobile data and Render wake-ups are flaky.
+    if (attempt < MAX_ATTEMPTS - 1) {
+      await sleep(1500 * (attempt + 1));
+      return rawFetch(input, init, attempt + 1);
+    }
+    throw e;
+  }
 }
 
 // Dedupe concurrent refreshes (refresh tokens are one-time use)
@@ -37,12 +67,8 @@ async function refreshAccessToken(): Promise<string> {
 export function installAuthFetch() {
   window.fetch = async (input, init) => {
     const token = localStorage.getItem("token");
-    const adminSecret = localStorage.getItem("adminSecret");
-    const headers: any = { ...(init?.headers || {}) };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    if (adminSecret) headers["x-admin-secret"] = adminSecret;
 
-    let res = await origFetch(input, { ...init, headers });
+    let res = await rawFetch(input, init);
 
     if (res.status === 401 && token && typeof input === "string" && !input.includes("/api/auth/login") && !input.includes("/api/auth/refresh")) {
       try {

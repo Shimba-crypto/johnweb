@@ -14,7 +14,7 @@ export default function JohnxAuto() {
     let cancelled = false;
     const timer = setTimeout(() => {
       if (!cancelled) { setError("The server is taking too long to respond. Try again."); setTried(true); }
-    }, 20000);
+    }, 45000);
     (async () => {
       try {
         const res = await fetch("/api/auth/johnx", {

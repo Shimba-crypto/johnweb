@@ -99,7 +99,7 @@ export default function Login() {
     const timer = setTimeout(() => {
       setSubmitting(false);
       setError("The server is taking too long to respond. Check your connection and try again.");
-    }, 20000);
+    }, 45000);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
