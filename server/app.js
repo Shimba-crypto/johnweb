@@ -283,40 +283,22 @@ app.get("/api/teacher/students", (req, res) => {
   }));
 });
 
-const loginAttempts = new Map();
-
 app.post("/api/auth/login", (req, res) => {
   const emailKey = String(req.body?.email || "").toLowerCase();
-  const now = Date.now();
-  let locked = false;
-  if (emailKey) {
-    const rec = loginAttempts.get(emailKey);
-    if (rec && rec.lockedUntil && now < rec.lockedUntil) {
-      locked = true;
-    }
-  }
   const { email, password } = req.body;
   const users = readJSON("users.json");
   const emailMatch = (u) => String(u.email || "").toLowerCase() === String(email || "").toLowerCase();
-  const user = users.find(emailMatch);
-  if (locked) {
-    const mins = Math.ceil((rec.lockedUntil - now) / 60000);
-    logSecurity("login_locked", "", emailKey, "Account temporarily locked after repeated failures", req);
-    return res.status(423).json({ error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.` });
-  }
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    if (emailKey) {
-      const rec = loginAttempts.get(emailKey) || { fails: 0, lockedUntil: 0 };
-      rec.fails = (rec.fails || 0) + 1;
-      if (rec.fails >= 8) {
-        rec.lockedUntil = now + 3 * 60 * 1000;
-        rec.fails = 0;
-        logSecurity("account_locked", user?.id || "", emailKey, "8 failed login attempts", req);
-      } else {
-        loginAttempts.set(emailKey, rec);
-      }
-    }
-    if (!user) return res.status(401).json({ error: "No account found with that email. Check the spelling or sign up." });
+  let user = users.find(emailMatch);
+  if (!user) {
+    const pwErr = validatePassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+    const stem = String(email || "").split("@")[0].replace(/[^a-zA-Z0-9 ]/g, " ").trim();
+    const name = (stem ? stem.charAt(0).toUpperCase() + stem.slice(1) : "New Student").slice(0, 40);
+    user = { id: uuidv4(), name, email, password: bcrypt.hashSync(password, 10), role: "student", tokenVersion: 1, createdAt: new Date().toISOString() };
+    users.push(user);
+    writeJSON("users.json", users);
+    addNotification(user.id, "welcome", "👋 Welcome to JohnWeb!", `Hi ${name}! You're in — practice real ECZ past papers and take quizzes. Start with a Grade 7 paper.`, "/browse");
+  } else if (!bcrypt.compareSync(password, user.password)) {
     logSecurity("login_fail", "", emailKey, "wrong password", req);
     return res.status(401).json({ error: "Invalid credentials" });
   }
@@ -324,7 +306,6 @@ app.post("/api/auth/login", (req, res) => {
     addNotification(user.id, "banned", "Account Banned", `Your account has been banned${user.banReason ? `: ${user.banReason}` : "."}`, "/");
     return res.status(403).json({ error: `Your account has been banned${user.banReason ? `: ${user.banReason}` : "."}`, banned: true, banReason: user.banReason });
   }
-  if (emailKey) loginAttempts.delete(emailKey);
   const tokens = issueTokens(user);
   res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
