@@ -317,6 +317,7 @@ app.post("/api/auth/login", (req, res) => {
       }
     }
     if (!user) return res.status(401).json({ error: "No account found with that email. Check the spelling or sign up." });
+    logSecurity("login_fail", "", emailKey, "wrong password", req);
     return res.status(401).json({ error: "Invalid credentials" });
   }
   if (user.banned) {
