@@ -5,7 +5,7 @@ import { patchUser } from "../lib/apiFetch";
 
 export default function Profile() {
   usePageTitle("My Profile");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => { try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; } });
   const [answers, setAnswers] = useState<any[]>([]);
   const navigate = useNavigate();
 
@@ -14,8 +14,8 @@ export default function Profile() {
     if (!token) { navigate("/login"); return; }
     fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((data) => { if (data.error) navigate("/login"); else setUser(data); })
-      .catch(() => navigate("/login"));
+      .then((data) => { if (data.error) { try { if (!JSON.parse(localStorage.getItem("user") || "null")) navigate("/login"); } catch { navigate("/login"); } } else setUser(data); })
+      .catch(() => {});
     fetch("/api/answers/mine", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then(setAnswers);

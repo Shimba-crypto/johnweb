@@ -32,8 +32,8 @@ export default function Settings() {
     if (!t) { navigate("/login"); return; }
     fetch("/api/auth/me", { headers: { Authorization: `Bearer ${t}` } })
       .then((r) => r.json())
-      .then((d) => { if (d.error) navigate("/login"); else { setUser(d); setName(d.name); } })
-      .catch(() => navigate("/login"));
+      .then((d) => { if (d.error) { try { if (!JSON.parse(localStorage.getItem("user") || "null")) navigate("/login"); } catch { navigate("/login"); } } else { setUser(d); setName(d.name); } })
+      .catch(() => {});
   }, [navigate]);
 
   const api = async (method: string, url: string, body?: any) => {
