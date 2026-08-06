@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
 import { isSaved, savePaper, removePaper } from "../lib/offline";
+import ShareCard from "../components/ShareCard";
 
 interface Question {
   id: string;
@@ -219,7 +220,16 @@ export default function PaperDetail() {
           ) : null}
         </div>
 
-        <div className="text-center flex gap-3 justify-center">
+        <div className="text-center flex gap-3 justify-center flex-wrap">
+          <ShareCard
+            title={finished.title || paper.title}
+            subject={paper.subjectName}
+            grade={paper.grade}
+            correct={correct}
+            attempted={attempted}
+            pct={pct}
+            userName={(() => { try { return JSON.parse(localStorage.getItem("user") || "null")?.name; } catch { return ""; } })()}
+          />
           <button onClick={tryAgain} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">Try Again</button>
           <button onClick={downloadPDF} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200">🖨️ Print</button>
         </div>
