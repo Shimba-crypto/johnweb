@@ -297,23 +297,26 @@ app.post("/api/auth/login", (req, res) => {
   }
   const { email, password } = req.body;
   const users = readJSON("users.json");
-  const user = users.find((u) => u.email === email);
+  const emailMatch = (u) => String(u.email || "").toLowerCase() === String(email || "").toLowerCase();
+  const user = users.find(emailMatch);
   if (locked) {
+    const mins = Math.ceil((rec.lockedUntil - now) / 60000);
     logSecurity("login_locked", "", emailKey, "Account temporarily locked after repeated failures", req);
-    return res.status(423).json({ error: "Account locked due to too many failed attempts. Try again in 15 minutes." });
+    return res.status(423).json({ error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.` });
   }
   if (!user || !bcrypt.compareSync(password, user.password)) {
     if (emailKey) {
       const rec = loginAttempts.get(emailKey) || { fails: 0, lockedUntil: 0 };
       rec.fails = (rec.fails || 0) + 1;
-      if (rec.fails >= 5) {
-        rec.lockedUntil = now + 15 * 60 * 1000;
+      if (rec.fails >= 8) {
+        rec.lockedUntil = now + 3 * 60 * 1000;
         rec.fails = 0;
-        logSecurity("account_locked", user?.id || "", emailKey, "5 failed login attempts", req);
+        logSecurity("account_locked", user?.id || "", emailKey, "8 failed login attempts", req);
       } else {
         loginAttempts.set(emailKey, rec);
       }
     }
+    if (!user) return res.status(401).json({ error: "No account found with that email. Check the spelling or sign up." });
     return res.status(401).json({ error: "Invalid credentials" });
   }
   if (user.banned) {
