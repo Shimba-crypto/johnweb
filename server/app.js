@@ -324,7 +324,7 @@ function johnxKey() {
   return key;
 }
 
-app.post("/api/auth/johnx", (req, res) => {
+app.post("/api/auth/johnx", rateLimit(20, 60 * 1000), (req, res) => {
   const { key } = req.body || {};
   const expected = johnxKey();
   if (!key || typeof key !== "string" || key.length !== expected.length) {
