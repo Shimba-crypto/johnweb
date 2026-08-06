@@ -24,6 +24,7 @@ export default function Profile() {
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [progress, setProgress] = useState<any>(null);
+  const [imgFailed, setImgFailed] = useState(false);
 
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,7 +70,7 @@ export default function Profile() {
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="w-16 h-16 rounded-full bg-green-600 text-white flex items-center justify-center text-2xl font-bold overflow-hidden">
-                {user.avatar ? <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" /> : user.name?.[0]?.toUpperCase()}
+                {user.avatar && !imgFailed ? <img src={user.avatar} alt={user.name} onError={() => setImgFailed(true)} className="w-full h-full object-cover" /> : user.name?.[0]?.toUpperCase()}
               </div>
               <label className="absolute bottom-0 right-0 bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center cursor-pointer text-xs hover:bg-green-700" title="Change photo">
                 📷

@@ -3645,13 +3645,20 @@ function handleGoogleEmail(email, name, res) {
 }
 
 // ─── #61 AVATAR UPLOAD ─────────────────────────────────────
+// Stored as a base64 data URI directly in the user record (DB), so avatars
+// survive redeploys — Render's disk is wiped on every deploy.
 app.post("/api/avatar", auth, upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  const url = `/uploads/${req.file.filename}`;
-  const users = readJSON("users.json");
-  const idx = users.findIndex((u) => u.id === req.user.id);
-  if (idx >= 0) { users[idx].avatar = url; writeJSON("users.json", users); }
-  res.json({ url });
+  try {
+    const dataUri = `data:${req.file.mimetype};base64,${fs.readFileSync(req.file.path).toString("base64")}`;
+    fs.rmSync(req.file.path, { force: true });
+    const users = readJSON("users.json");
+    const idx = users.findIndex((u) => u.id === req.user.id);
+    if (idx >= 0) { users[idx].avatar = dataUri; writeJSON("users.json", users); }
+    res.json({ url: dataUri });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save avatar" });
+  }
 });
 
 // ─── #42 OFFLINE PAPER DOWNLOAD ────────────────────────────

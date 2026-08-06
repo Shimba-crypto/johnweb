@@ -11,6 +11,7 @@ export default function PublicProfile() {
   const [myUser, setMyUser] = useState<any>(null);
   const [progress, setProgress] = useState<any>(null);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     fetch(`/api/users/${id}/public`).then((r) => r.json()).then(setProfile);
@@ -30,7 +31,7 @@ export default function PublicProfile() {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-green-600 text-white flex items-center justify-center text-2xl font-bold overflow-hidden shrink-0">
-              {profile.avatar ? <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" /> : profile.name?.[0]?.toUpperCase()}
+              {profile.avatar && !imgFailed ? <img src={profile.avatar} alt={profile.name} onError={() => setImgFailed(true)} className="w-full h-full object-cover" /> : profile.name?.[0]?.toUpperCase()}
             </div>
             <div>
               <h1 className="text-2xl font-bold">{profile.name}</h1>
