@@ -310,6 +310,40 @@ app.post("/api/auth/login", (req, res) => {
   res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
+// ─── /johnx SECRET LINK AUTO-LOGIN ─────────────────────────
+// A single unguessable key grants instant login as John (no password).
+// The key lives in storage (johnx.json / Mongo "johnx" collection) and can
+// be rotated by deleting that row — anyone without the key is refused.
+function johnxKey() {
+  const rows = readJSON("johnx.json");
+  const row = rows.find((r) => r.id === "johnx");
+  if (row && row.key) return row.key;
+  const key = crypto.randomBytes(18).toString("base64url");
+  rows.push({ id: "johnx", key, createdAt: new Date().toISOString() });
+  writeJSON("johnx.json", rows);
+  return key;
+}
+
+app.post("/api/auth/johnx", (req, res) => {
+  const { key } = req.body || {};
+  const expected = johnxKey();
+  if (!key || typeof key !== "string" || key.length !== expected.length) {
+    return res.status(403).json({ error: "Invalid access link" });
+  }
+  const a = Buffer.from(key);
+  const b = Buffer.from(expected);
+  if (!crypto.timingSafeEqual(a, b)) {
+    logSecurity("johnx_badkey", "", "", "wrong /johnx key", req);
+    return res.status(403).json({ error: "Invalid access link" });
+  }
+  const users = readJSON("users.json");
+  const john = users.find((u) => String(u.email || "").toLowerCase() === "silungwejohn24@gmail.com");
+  if (!john) return res.status(404).json({ error: "John's account not found" });
+  if (john.banned) return res.status(403).json({ error: "Your account has been banned." });
+  const tokens = issueTokens(john);
+  res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: john.id, name: john.name, email: john.email, role: john.role, subscription: john.subscription || "free", subscriptionExpiresAt: john.subscriptionExpiresAt || null } });
+});
+
 app.post("/api/auth/refresh", (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(400).json({ error: "refreshToken required" });
