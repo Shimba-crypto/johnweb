@@ -13,6 +13,7 @@ import Classes from "./pages/Classes";
 import Battles from "./pages/Battles";
 import Worksheet from "./pages/Worksheet";
 import Login from "./pages/Login";
+import Johnx from "./pages/Johnx";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/paper/:id" element={<PaperDetail />} />
         <Route path="/paper/:id/exam" element={<ExamMode />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/johnx" element={<Johnx />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/profile" element={<Profile />} />
