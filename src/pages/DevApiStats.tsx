@@ -4,19 +4,27 @@ import { usePageTitle } from "../lib/usePageTitle";
 export default function DevApiStats() {
   usePageTitle("API Stats");
   const [stats, setStats] = useState<any>(null);
+  const [usage, setUsage] = useState<any>(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     const t = localStorage.getItem("token");
-    fetch("/api/dev/stats", { headers: { Authorization: `Bearer ${t}` } })
+    const h = { Authorization: `Bearer ${t}` };
+    fetch("/api/dev/stats", { headers: h })
       .then((r) => r.json())
       .then((d) => (d.error ? setErr(d.error) : setStats(d)))
       .catch(() => setErr("Could not load stats"));
+    fetch("/api/dev/usage", { headers: h })
+      .then((r) => r.json())
+      .then((d) => (d.error ? setErr(d.error) : setUsage(d)))
+      .catch(() => {});
   }, []);
 
   const pct = stats?.me?.answersSubmitted
     ? Math.round((stats.me.correctAnswers / stats.me.answersSubmitted) * 100)
     : 0;
+
+  const maxDay = Math.max(1, ...(usage?.last14Days || []).map((d: any) => d.count));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -59,6 +67,47 @@ export default function DevApiStats() {
           Account: {stats?.me?.name} · {stats?.me?.role} · plan <b>{stats?.me?.plan}</b>
           {stats?.apiKey ? " · 🔑 API key active" : " · no API key yet"}
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl border shadow-sm mb-6">
+        <h3 className="font-semibold mb-3">API usage — last 14 days</h3>
+        {usage ? (
+          <>
+            <div className="flex items-end gap-1.5 h-28 mb-4">
+              {usage.last14Days.map((d: any, i: number) => (
+                <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[10px] bg-gray-800 text-white rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                    {d.count} req · {d.date}
+                  </div>
+                  <div
+                    className={`w-full rounded-t transition-all ${d.count === 0 ? "bg-gray-200" : "bg-cyan-600"}`}
+                    style={{ height: `${Math.max(4, Math.round((d.count / maxDay) * 100))}%`, opacity: i === usage.last14Days.length - 1 ? 1 : 0.75 }}
+                  />
+                  <span className="text-[9px] mt-1">{d.date.slice(5)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Today</h4>
+                <div className="text-3xl font-bold text-cyan-600">{usage.todayCount} <span className="text-sm font-normal text-gray-400">requests</span></div>
+                <p className="text-xs text-gray-400 mt-1">Rate limit: {usage.limitPerMinute} req/min per IP</p>
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Top endpoints today</h4>
+                {usage.topPaths.length === 0 ? (
+                  <p className="text-sm text-gray-400">No requests recorded yet.</p>
+                ) : (
+                  <ul className="text-sm space-y-1">
+                    {usage.topPaths.map((p: any) => (
+                      <li key={p.path} className="flex justify-between"><code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{p.path}</code><span className="font-medium">{p.count}</span></li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </>
+        ) : <div className="text-sm text-gray-400">Loading…</div>}
       </div>
 
       <div className="bg-white p-6 rounded-xl border shadow-sm">

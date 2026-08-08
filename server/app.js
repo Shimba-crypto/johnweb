@@ -485,6 +485,147 @@ app.get("/api/dev/stats", auth, (req, res) => {
   });
 });
 
+// ─── API USAGE TRACKING (for the developer dashboard) ─────────
+// Counts requests to /api/public/* and /api/dev/* in memory, flushes to
+// api-usage.json once a minute (no per-request disk writes).
+const usageStore = new Map(); // "YYYY-MM-DD" -> Map(path -> count)
+
+function trackUsage(req, res, next) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (!usageStore.has(day)) usageStore.set(day, new Map());
+  const m = usageStore.get(day);
+  m.set(req.path, (m.get(req.path) || 0) + 1);
+  next();
+}
+app.use("/api/public", trackUsage);
+app.use("/api/dev", trackUsage);
+
+setInterval(() => {
+  if (usageStore.size === 0) return;
+  const rows = readJSON("api-usage.json");
+  for (const [day, m] of usageStore) {
+    for (const [path, count] of m) {
+      const rec = rows.find((r) => r.date === day && r.path === path);
+      if (rec) rec.count += count;
+      else rows.push({ date: day, path, count });
+    }
+  }
+  usageStore.clear();
+  writeJSON("api-usage.json", rows.slice(-2000));
+}, 60 * 1000).unref();
+
+app.get("/api/dev/usage", auth, (req, res) => {
+  const rows = readJSON("api-usage.json");
+  const byDay = {};
+  rows.forEach((r) => { byDay[r.date] = (byDay[r.date] || 0) + r.count; });
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    days.push({ date: key, count: byDay[key] || 0 });
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const inMemory = usageStore.get(today);
+  const todayCount = (byDay[today] || 0) + (inMemory ? [...inMemory.values()].reduce((a, b) => a + b, 0) : 0);
+  const topPaths = rows
+    .filter((r) => r.date === today)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .map((r) => ({ path: r.path, count: r.count }));
+  res.json({ last14Days: days, todayCount, topPaths, limitPerMinute: 300 });
+});
+
+// ─── STATUS PAGE DATA (probes POST beats; /api/status reads them) ─────────
+app.post("/api/status/beat", rateLimit(60, 60000), (req, res) => {
+  const { site, ok, ms } = req.body || {};
+  if (!site) return res.status(400).json({ error: "site required" });
+  const beats = readJSON("status-beats.json");
+  beats.push({ site: String(site).slice(0, 40), ok: Boolean(ok), ms: Math.min(Number(ms) || 0, 60000), at: new Date().toISOString() });
+  writeJSON("status-beats.json", beats.slice(-3000));
+  res.json({ ok: true });
+});
+
+app.get("/api/status", (req, res) => {
+  const beats = readJSON("status-beats.json");
+  const sites = {};
+  beats.forEach((b) => {
+    const d = b.at.slice(0, 10);
+    if (!sites[b.site]) sites[b.site] = { name: b.site, days: {} };
+    if (!sites[b.site].days[d]) sites[b.site].days[d] = { checks: 0, fails: 0, msSum: 0, lastAt: b.at, lastMs: b.ms, lastOk: b.ok };
+    const day = sites[b.site].days[d];
+    day.checks++;
+    if (!b.ok) day.fails++;
+    day.msSum += b.ms;
+    day.lastAt = b.at;
+    day.lastMs = b.ms;
+    day.lastOk = b.ok;
+  });
+  const result = {};
+  for (const [name, s] of Object.entries(sites)) {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const day = s.days[key];
+      days.push(day
+        ? { date: key, checks: day.checks, fails: day.fails, avgMs: Math.round(day.msSum / day.checks), lastOk: day.lastOk }
+        : { date: key, checks: 0, fails: 0, avgMs: null, lastOk: null });
+    }
+    const totalChecks = Object.values(s.days).reduce((a, d) => a + d.checks, 0);
+    const totalFails = Object.values(s.days).reduce((a, d) => a + d.fails, 0);
+    result[name] = {
+      days,
+      totalChecks,
+      uptimePct: totalChecks ? Math.round((1 - totalFails / totalChecks) * 100) : null,
+      lastCheckAt: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastAt || null,
+      lastMs: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastMs || null,
+      lastOk: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastOk ?? null,
+    };
+  }
+  res.json({ generatedAt: new Date().toISOString(), sites: result });
+});
+
+// ─── APP BUILDER REGISTRY (free Developer plan) ───────────────
+app.post("/api/dev/apps", auth, (req, res) => {
+  const { appName, appUrl, description } = req.body || {};
+  if (!appName || !appUrl) return res.status(400).json({ error: "appName and appUrl are required" });
+  if (!/^https?:\/\//.test(appUrl)) return res.status(400).json({ error: "appUrl must start with http:// or https://" });
+  const apps = readJSON("apps.json");
+  if (apps.filter((a) => a.userId === req.user.id).length >= 3) return res.status(400).json({ error: "Max 3 apps per account" });
+  const app = { id: uuidv4(), userId: req.user.id, appName: String(appName).slice(0, 60), appUrl: String(appUrl).slice(0, 200), description: String(description || "").slice(0, 300), status: "pending", createdAt: new Date().toISOString(), reviewedAt: null };
+  apps.push(app);
+  writeJSON("apps.json", apps);
+  adminLog("app_submitted", req.user.id, req.user.name, `${appName} (${appUrl})`);
+  res.json({ message: "App submitted for review!", app });
+});
+
+app.get("/api/dev/apps", auth, (req, res) => {
+  res.json(readJSON("apps.json").filter((a) => a.userId === req.user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+});
+
+app.get("/api/admin/apps", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  res.json(readJSON("apps.json").sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((a) => ({ ...a, userName: users.find((u) => u.id === a.userId)?.name || "Unknown" })));
+});
+
+app.put("/api/admin/apps/:id", adminAuth, (req, res) => {
+  const { status } = req.body || {};
+  if (!["pending", "approved", "rejected"].includes(status)) return res.status(400).json({ error: "Invalid status" });
+  const apps = readJSON("apps.json");
+  const idx = apps.findIndex((a) => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found" });
+  apps[idx].status = status;
+  apps[idx].reviewedAt = new Date().toISOString();
+  writeJSON("apps.json", apps);
+  const users = readJSON("users.json");
+  const owner = users.find((u) => u.id === apps[idx].userId);
+  if (owner) addNotification(owner.id, "app_reviewed", status === "approved" ? "🛠️ App Approved!" : "App Update", status === "approved" ? `Your app "${apps[idx].appName}" was approved — your App Builder badge is now live on your profile!` : `Your app "${apps[idx].appName}" was ${status}.`, "/dev/app-builder");
+  adminLog("app_reviewed", req.user.id, req.user.name, `${apps[idx].appName} → ${status}`);
+  res.json({ id: apps[idx].id, status });
+});
+
 app.get("/api/subjects", (req, res) => {
   const subjects = readJSON("subjects.json");
   const papers = readJSON("papers.json");
@@ -621,6 +762,35 @@ app.get("/api/public/papers/:id", (req, res) => {
   });
 });
 
+// Full-text search across papers (titles) and questions (text)
+app.get("/api/public/search", (req, res) => {
+  const q = String(req.query.q || "").trim().toLowerCase();
+  if (q.length < 2) return res.status(400).json({ error: "Type at least 2 characters" });
+  const papers = readJSON("papers.json");
+  const questions = readJSON("questions.json");
+  const paperHits = papers.filter((p) => String(p.title || "").toLowerCase().includes(q)).slice(0, 20);
+  const questionHits = questions.filter((x) => String(x.text || "").toLowerCase().includes(q)).slice(0, 50);
+  res.json({
+    query: q,
+    papers: paperHits.map((p) => ({
+      id: p.id,
+      title: p.title,
+      subjectId: p.subjectId,
+      subjectName: p.subjectName || undefined,
+      grade: p.grade,
+      year: p.year,
+      questionsCount: questions.filter((x) => x.paperId === p.id).length,
+    })),
+    questions: questionHits.map((x) => ({
+      id: x.id,
+      paperId: x.paperId,
+      questionNumber: x.questionNumber,
+      text: x.text,
+      marks: x.marks,
+    })),
+  });
+});
+
 app.get("/api/answers/mine", (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
@@ -673,6 +843,7 @@ app.get("/api/users/:id/public", (req, res) => {
   const ratings = readJSON("ratings.json").filter((r) => r.targetId === user.id);
   const xp = readJSON("xp.json").find((x) => x.userId === user.id);
   const correct = answers.filter((a) => a.isCorrect).length;
+  const approvedApps = readJSON("apps.json").filter((a) => a.userId === user.id && a.status === "approved");
   res.json({
     id: user.id, name: user.name, role: user.role, avatar: user.avatar || null,
     createdAt: user.createdAt, totalAnswers: answers.length, correct,
@@ -680,6 +851,7 @@ app.get("/api/users/:id/public", (req, res) => {
     avgRating: ratings.length ? Math.round((ratings.reduce((s, r) => s + r.score, 0) / ratings.length) * 10) / 10 : 0,
     ratingCount: ratings.length, level: xp ? Math.floor(Math.sqrt(xp.xp / 100)) + 1 : 1, xp: xp?.xp || 0, streak: xp?.streak || 0,
     badges: xp?.badges || [],
+    apps: approvedApps.map((a) => ({ appName: a.appName, appUrl: a.appUrl, description: a.description })),
   });
 });
 
@@ -2630,7 +2802,7 @@ app.get("/api/admin/backup", adminAuth, (req, res) => {
   const filename = `johnweb-backup-${new Date().toISOString().slice(0, 10)}.json`;
   // Read via readJSON (Mongo-backed when in Mongo mode) so backups reflect
   // the REAL live data, not whatever files happen to be on disk.
-  const INIT_COLLECTIONS = ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "library.json", "invoices.json"];
+  const INIT_COLLECTIONS = ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "api-usage.json", "status-beats.json", "apps.json", "library.json", "invoices.json"];
   const CORE = ["users.json", "subjects.json", "papers.json", "questions.json", "answers.json", "settings.json"];
   const data = {};
   [...new Set([...INIT_COLLECTIONS, ...CORE])].forEach((f) => {
@@ -4148,7 +4320,7 @@ app.post("/api/usage/page-view", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "library.json", "invoices.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "api-usage.json", "status-beats.json", "apps.json", "library.json", "invoices.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

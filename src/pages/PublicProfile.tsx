@@ -40,9 +40,21 @@ export default function PublicProfile() {
               <span>{profile.avgRating > 0 ? `${profile.avgRating} ★ (${profile.ratingCount})` : "No ratings yet"}</span>
             </div>
             <p className="text-xs text-gray-400 mt-1">Joined {new Date(profile.createdAt).toLocaleDateString()}</p>
-            {profile.badges?.length > 0 && (
+            {(profile.badges?.length > 0 || profile.apps?.length > 0) && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {profile.badges.map((b: string, i: number) => <span key={i} className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{b}</span>)}
+                {profile.badges?.map((b: string, i: number) => <span key={i} className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{b}</span>)}
+                {profile.apps?.length > 0 && <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">🛠️ App Builder</span>}
+              </div>
+            )}
+            {profile.apps?.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {profile.apps.map((a: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="text-cyan-600">🛠️</span>
+                    <span className="font-medium">{a.appName}</span>
+                    <a href={a.appUrl} target="_blank" rel="noreferrer" className="text-xs text-cyan-600 hover:underline break-all">{a.appUrl}</a>
+                  </div>
+                ))}
               </div>
             )}
             </div>

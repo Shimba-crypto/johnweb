@@ -154,6 +154,7 @@ export default function Layout() {
             <Link to="/dev/api-stats" className={linkCls("/dev/api-stats")}>📊 <span>API Stats</span></Link>
             <Link to="/dev/papers-api" className={linkCls("/dev/papers-api")}>📚 <span>Papers API</span></Link>
             <Link to="/dev/connect-app" className={linkCls("/dev/connect-app")}>🔌 <span>Connect App</span></Link>
+            <Link to="/dev/app-builder" className={linkCls("/dev/app-builder")}>🛠️ <span>App Builder</span></Link>
             <Link to="/api-docs" className={linkCls("/api-docs")}>📖 <span>API Docs</span></Link>
             <SectionLabel>Account</SectionLabel>
             <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
@@ -214,6 +215,7 @@ export default function Layout() {
         <Link to="/about" className={linkCls("/about")}>ℹ️ <span>About</span></Link>
         <Link to="/pricing" className={linkCls("/pricing")}>💳 <span>Pricing</span></Link>
         <Link to="/contact" className={linkCls("/contact")}>📧 <span>Contact</span></Link>
+        <Link to="/status" className={linkCls("/status")}>🩺 <span>Status</span></Link>
         <Link to="/api-docs" className={linkCls("/api-docs")}>🔌 <span>API Docs</span></Link>
         </>
         )}

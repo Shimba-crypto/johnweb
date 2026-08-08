@@ -47,6 +47,8 @@ import DevApiKeys from "./pages/DevApiKeys";
 import DevApiStats from "./pages/DevApiStats";
 import DevPapersApi from "./pages/DevPapersApi";
 import DevConnectApp from "./pages/DevConnectApp";
+import DevAppBuilder from "./pages/DevAppBuilder";
+import Status from "./pages/Status";
 import Bookmarks from "./pages/Bookmarks";
 import PostNews from "./pages/PostNews";
 import OfflineIndicator from "./components/OfflineIndicator";
@@ -119,6 +121,8 @@ export default function App() {
         <Route path="/dev/api-stats" element={<DevApiStats />} />
         <Route path="/dev/papers-api" element={<DevPapersApi />} />
         <Route path="/dev/connect-app" element={<DevConnectApp />} />
+        <Route path="/dev/app-builder" element={<DevAppBuilder />} />
+        <Route path="/status" element={<Status />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/admin/post-news" element={<PostNews />} />
         <Route path="/achievements" element={<Achievements />} />

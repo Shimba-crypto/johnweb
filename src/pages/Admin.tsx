@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { usePageTitle } from "../lib/usePageTitle";
 
-type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "codes" | "analytics" | "users" | "tools" | "moderation" | "apikeys" | "roles";
+type Tab = "overview" | "subjects" | "papers" | "questions" | "answers" | "news" | "contacts" | "logs" | "payments" | "invites" | "codes" | "analytics" | "users" | "tools" | "moderation" | "apikeys" | "roles" | "devapps";
 
 export default function Admin() {
   usePageTitle("Admin Panel");
@@ -170,6 +170,7 @@ export default function Admin() {
     { key: "tools", label: "Tools" },
     { key: "moderation", label: "Moderation" },
     { key: "apikeys", label: "API Keys" },
+    { key: "devapps", label: "App Builder" },
     { key: "roles", label: "Roles" },
     { key: "analytics", label: "Analytics" },
     { key: "users", label: "Users" },
@@ -571,6 +572,7 @@ export default function Admin() {
       {tab === "tools" && <ToolsTab api={api} papers={papers} />}
       {tab === "moderation" && <ModerationTab api={api} />}
       {tab === "apikeys" && <ApiKeysTab api={api} />}
+      {tab === "devapps" && <DevAppsTab api={api} />}
       {tab === "roles" && <RolesTab api={api} />}
 
       {tab === "analytics" && <AnalyticsTab token={token} />}
@@ -1061,6 +1063,48 @@ function ModerationTab({ api }: { api: any }) {
           <div key={c.id} className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between gap-3">
             <div className="min-w-0"><span className="text-xs text-gray-400">{c.userName}</span><p className="text-sm text-gray-700 truncate">{c.content}</p></div>
             <button onClick={async () => { if (confirm("Delete this comment?")) { await api("DELETE", `/api/admin/comments/${c.id}`); load(); } }} className="shrink-0 text-xs text-red-600 hover:underline">Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DevAppsTab({ api }: { api: any }) {
+  const [apps, setApps] = useState<any[]>([]);
+  const load = () => api("GET", "/api/admin/apps").then((d) => setApps(Array.isArray(d) ? d : [])).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const review = async (id: string, status: string) => {
+    const r = await api("PUT", `/api/admin/apps/${id}`, { status });
+    if (r.error) alert(r.error);
+    load();
+  };
+
+  const chip = (s: string) =>
+    s === "approved" ? "bg-green-100 text-green-700" : s === "rejected" ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-700";
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4">App Builder Approvals</h2>
+      <p className="text-sm text-gray-500 mb-4">Apps submitted by developers on the free Developer plan. Approved apps appear on their public profile with the 🛠️ App Builder badge.</p>
+      {apps.length === 0 && <p className="text-sm text-gray-400">No app submissions yet.</p>}
+      <div className="space-y-3">
+        {apps.map((a) => (
+          <div key={a.id} className="bg-white p-4 rounded-xl border shadow-sm flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{a.appName}</span>
+                <span className={`text-xs px-2 py-0.5 rounded ${chip(a.status)}`}>{a.status}</span>
+              </div>
+              <a href={a.appUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline break-all">{a.appUrl}</a>
+              {a.description && <p className="text-xs text-gray-500 mt-1">{a.description}</p>}
+              <p className="text-[10px] text-gray-400 mt-1">by {a.userName} · {new Date(a.createdAt).toLocaleString()}</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => review(a.id, "approved")} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700">✅ Approve</button>
+              <button onClick={() => review(a.id, "rejected")} className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs hover:bg-red-100">❌ Reject</button>
+            </div>
           </div>
         ))}
       </div>

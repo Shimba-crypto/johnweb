@@ -85,6 +85,29 @@ for q in paper["questions"]:
     print(q["questionNumber"], q["text"])`,
       curl: `curl "${BASE}/api/public/papers/paper-058"`,
     },
+    search: {
+      js: jsFetch(`const q = "president";
+const res = await fetch("${BASE}/api/public/search?q=" + encodeURIComponent(q));
+const data = await res.json();
+console.log(data.papers.length, "papers,", data.questions.length, "questions");`),
+      python: `import requests
+
+data = requests.get(
+    "${BASE}/api/public/search",
+    params={"q": "president"},
+).json()
+print(data["papers"], data["questions"])`,
+      curl: `curl "${BASE}/api/public/search?q=president"`,
+    },
+    status: {
+      js: jsFetch(`const res = await fetch("${BASE}/api/status");
+const status = await res.json();
+console.log(status.sites);`),
+      python: `import requests
+
+print(requests.get("${BASE}/api/status").json())`,
+      curl: `curl "${BASE}/api/status"`,
+    },
     chat: {
       js: jsFetch(`const res = await fetch("${BASE}/api/chat/BOT_ID", {
   method: "POST",
@@ -297,6 +320,18 @@ print(res.json())`,
         desc="One full paper including all questions, options and model answers. Example: /api/public/papers/paper-058"
         samples={samples.paper}
         response={respPaper}
+      />
+
+      <Block
+        title="GET /api/public/search"
+        desc="Full-text search across paper titles and question text. Returns matched papers and questions. Example: /api/public/search?q=president"
+        samples={samples.search}
+      />
+
+      <Block
+        title="GET /api/status"
+        desc="Public status page data: 7 days of availability + latency for every monitored site (fed by the 5-minute monitor)."
+        samples={samples.status}
       />
 
       <h2 className="text-2xl font-bold mb-4 mt-10">Bot API (key needed)</h2>
