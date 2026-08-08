@@ -814,13 +814,22 @@ const defaultAdmins = [
 
 function seed() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(path.join(DATA_DIR, "subjects.json"), JSON.stringify(subjects, null, 2));
-  fs.writeFileSync(path.join(DATA_DIR, "papers.json"), JSON.stringify(papers, null, 2));
-  fs.writeFileSync(path.join(DATA_DIR, "questions.json"), JSON.stringify(questions, null, 2));
-  fs.writeFileSync(path.join(DATA_DIR, "users.json"), JSON.stringify(defaultAdmins, null, 2));
-  fs.writeFileSync(path.join(DATA_DIR, "answers.json"), JSON.stringify([], null, 2));
-  console.log(`Seeded: ${subjects.length} subjects, ${papers.length} papers, ${questions.length} questions`);
-  console.log(`Default admins: Tr-John-X (shimbacc@hotmail.com), Silungwe John (silungwejohn24@gmail.com)`);
+  // Idempotent: only seed if files don't exist (preserves imported data on redeploy)
+  const subjFile = path.join(DATA_DIR, "subjects.json");
+  const papFile = path.join(DATA_DIR, "papers.json");
+  const qFile = path.join(DATA_DIR, "questions.json");
+  const usrFile = path.join(DATA_DIR, "users.json");
+  const ansFile = path.join(DATA_DIR, "answers.json");
+
+  if (!fs.existsSync(subjFile)) fs.writeFileSync(subjFile, JSON.stringify(subjects, null, 2));
+  if (!fs.existsSync(papFile)) fs.writeFileSync(papFile, JSON.stringify(papers, null, 2));
+  if (!fs.existsSync(qFile)) fs.writeFileSync(qFile, JSON.stringify(questions, null, 2));
+  if (!fs.existsSync(usrFile)) fs.writeFileSync(usrFile, JSON.stringify(defaultAdmins, null, 2));
+  if (!fs.existsSync(ansFile)) fs.writeFileSync(ansFile, JSON.stringify([], null, 2));
+
+  const pCount = JSON.parse(fs.readFileSync(papFile, "utf-8")).length;
+  const qCount = JSON.parse(fs.readFileSync(qFile, "utf-8")).length;
+  console.log(`Seed check: ${subjects.length} subjects template, ${pCount} papers, ${qCount} questions on disk`);
 }
 
 seed();
