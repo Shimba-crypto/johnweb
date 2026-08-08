@@ -62,6 +62,12 @@ export default function DevDashboard() {
             </>
           ) : <div className="text-sm text-gray-400">Loading…</div>}
         </Card>
+        <Card title="🔗 ShimbaData" className="text-center">
+          <div className="text-sm text-gray-600 mb-2">Zambia data API — papers, wards, schools, laws & more.</div>
+          <a href="https://shimbadata.onrender.com" target="_blank" rel="noopener" className="inline-block bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
+            Open ShimbaData →
+          </a>
+        </Card>
         <Card title="🔑 API key" className="text-center">
           {stats ? (
             stats.apiKey ? (
@@ -86,6 +92,7 @@ export default function DevDashboard() {
             <Link to="/dev/api-stats" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">📊 API Stats</Link>
             <Link to="/dev/papers-api" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">📚 Papers API</Link>
             <Link to="/dev/connect-app" className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700">🔌 Connect App</Link>
+            <a href="https://shimbadata.onrender.com" target="_blank" rel="noopener" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">🌐 ShimbaData API</a>
             <Link to="/api-docs" className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700">📖 API Docs</Link>
           </div>
         </Card>
