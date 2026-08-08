@@ -31,6 +31,18 @@ const JWT_SECRET = getJwtSecret();
 const app = express();
 app.set("trust proxy", 1);
 
+// ─── Public API CORS: open to ANY origin (papers are meant to be free) ─────
+function publicCors(req, res, next) {
+  if (req.path.startsWith("/api/public")) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+  }
+  next();
+}
+app.use(publicCors);
+
 // ─── CORS (restricted) ──────────────────────────────────────
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://johnweb-qncu.onrender.com,http://localhost:5173,http://localhost:3001").split(",").map((s) => s.trim());
 const corsOptions = {
@@ -474,6 +486,71 @@ app.get("/api/questions", (req, res) => {
   const { paperId } = req.query;
   if (!paperId) return res.status(400).json({ error: "paperId required" });
   res.json(readJSON("questions.json").filter((q) => q.paperId === paperId));
+});
+
+// ─── PUBLIC API — free for ANY app/site (no login, CORS open) ──────────────
+app.use("/api/public", rateLimit(300, 60000));
+
+app.get("/api/public/stats", (req, res) => {
+  const subjects = readJSON("subjects.json");
+  const papers = readJSON("papers.json");
+  const questions = readJSON("questions.json");
+  res.json({
+    subjects: subjects.length,
+    papers: papers.length,
+    questions: questions.length,
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+app.get("/api/public/subjects", (req, res) => {
+  const subjects = readJSON("subjects.json");
+  const papers = readJSON("papers.json");
+  res.json(subjects.map((s) => ({
+    id: s.id,
+    name: s.name,
+    grade: s.grade,
+    papers: papers
+      .filter((p) => p.subjectId === s.id)
+      .map((p) => ({ id: p.id, title: p.title, grade: p.grade, year: p.year })),
+  })));
+});
+
+app.get("/api/public/papers", (req, res) => {
+  let papers = readJSON("papers.json");
+  const { subjectId, grade, year } = req.query;
+  if (subjectId) papers = papers.filter((p) => p.subjectId === subjectId);
+  if (grade) papers = papers.filter((p) => p.grade === grade);
+  if (year) papers = papers.filter((p) => p.year === parseInt(year));
+  const questions = readJSON("questions.json");
+  res.json(papers.map((p) => ({
+    id: p.id,
+    title: p.title,
+    subjectId: p.subjectId,
+    subjectName: p.subjectName || undefined,
+    grade: p.grade,
+    year: p.year,
+    questionsCount: questions.filter((q) => q.paperId === p.id).length,
+  })));
+});
+
+app.get("/api/public/papers/:id", (req, res) => {
+  const papers = readJSON("papers.json");
+  const paper = papers.find((p) => p.id === req.params.id);
+  if (!paper) return res.status(404).json({ error: "Not found" });
+  res.json({
+    ...paper,
+    questions: readJSON("questions.json")
+      .filter((q) => q.paperId === paper.id)
+      .map((q) => ({
+        id: q.id,
+        questionNumber: q.questionNumber,
+        text: q.text,
+        marks: q.marks,
+        options: q.options || [],
+        modelAnswer: q.modelAnswer || null,
+      })),
+  });
 });
 
 app.get("/api/answers/mine", (req, res) => {
