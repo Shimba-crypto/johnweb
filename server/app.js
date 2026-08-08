@@ -594,36 +594,15 @@ app.post("/api/dev/apps", auth, (req, res) => {
   if (!/^https?:\/\//.test(appUrl)) return res.status(400).json({ error: "appUrl must start with http:// or https://" });
   const apps = readJSON("apps.json");
   if (apps.filter((a) => a.userId === req.user.id).length >= 3) return res.status(400).json({ error: "Max 3 apps per account" });
-  const app = { id: uuidv4(), userId: req.user.id, appName: String(appName).slice(0, 60), appUrl: String(appUrl).slice(0, 200), description: String(description || "").slice(0, 300), status: "pending", createdAt: new Date().toISOString(), reviewedAt: null };
+  const app = { id: uuidv4(), userId: req.user.id, appName: String(appName).slice(0, 60), appUrl: String(appUrl).slice(0, 200), description: String(description || "").slice(0, 300), status: "approved", createdAt: new Date().toISOString(), reviewedAt: new Date().toISOString() };
   apps.push(app);
   writeJSON("apps.json", apps);
   adminLog("app_submitted", req.user.id, req.user.name, `${appName} (${appUrl})`);
-  res.json({ message: "App submitted for review!", app });
+  res.json({ message: "App published! It's now live on your profile.", app });
 });
 
 app.get("/api/dev/apps", auth, (req, res) => {
   res.json(readJSON("apps.json").filter((a) => a.userId === req.user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-});
-
-app.get("/api/admin/apps", adminAuth, (req, res) => {
-  const users = readJSON("users.json");
-  res.json(readJSON("apps.json").sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((a) => ({ ...a, userName: users.find((u) => u.id === a.userId)?.name || "Unknown" })));
-});
-
-app.put("/api/admin/apps/:id", adminAuth, (req, res) => {
-  const { status } = req.body || {};
-  if (!["pending", "approved", "rejected"].includes(status)) return res.status(400).json({ error: "Invalid status" });
-  const apps = readJSON("apps.json");
-  const idx = apps.findIndex((a) => a.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
-  apps[idx].status = status;
-  apps[idx].reviewedAt = new Date().toISOString();
-  writeJSON("apps.json", apps);
-  const users = readJSON("users.json");
-  const owner = users.find((u) => u.id === apps[idx].userId);
-  if (owner) addNotification(owner.id, "app_reviewed", status === "approved" ? "🛠️ App Approved!" : "App Update", status === "approved" ? `Your app "${apps[idx].appName}" was approved — your App Builder badge is now live on your profile!` : `Your app "${apps[idx].appName}" was ${status}.`, "/dev/app-builder");
-  adminLog("app_reviewed", req.user.id, req.user.name, `${apps[idx].appName} → ${status}`);
-  res.json({ id: apps[idx].id, status });
 });
 
 app.get("/api/subjects", (req, res) => {
@@ -898,6 +877,27 @@ const adminAuth = requireRole("super_admin", "omni_super");
 const superAdminAuth = requireRole("super_admin", "omni_super");
 const teacherAuth = requireRole("teacher", "admin", "super_admin", "omni_super");
 const staffAuth = requireRole("teacher", "admin", "super_admin", "dev", "omni_super");
+
+app.get("/api/admin/apps", adminAuth, (req, res) => {
+  const users = readJSON("users.json");
+  res.json(readJSON("apps.json").sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((a) => ({ ...a, userName: users.find((u) => u.id === a.userId)?.name || "Unknown" })));
+});
+
+app.put("/api/admin/apps/:id", adminAuth, (req, res) => {
+  const { status } = req.body || {};
+  if (!["pending", "approved", "rejected"].includes(status)) return res.status(400).json({ error: "Invalid status" });
+  const apps = readJSON("apps.json");
+  const idx = apps.findIndex((a) => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "Not found" });
+  apps[idx].status = status;
+  apps[idx].reviewedAt = new Date().toISOString();
+  writeJSON("apps.json", apps);
+  const users = readJSON("users.json");
+  const owner = users.find((u) => u.id === apps[idx].userId);
+  if (owner) addNotification(owner.id, "app_reviewed", status === "approved" ? "🛠️ App Approved!" : "App Update", status === "approved" ? `Your app "${apps[idx].appName}" was approved — your App Builder badge is now live on your profile!` : `Your app "${apps[idx].appName}" was ${status}.`, "/dev/app-builder");
+  adminLog("app_reviewed", req.user.id, req.user.name, `${apps[idx].appName} → ${status}`);
+  res.json({ id: apps[idx].id, status });
+});
 
 app.post("/api/admin/subjects", adminAuth, (req, res) => {
   const { name, code, description } = req.body;

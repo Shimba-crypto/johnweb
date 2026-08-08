@@ -41,7 +41,7 @@ export default function DevAppBuilder() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-1">App Builder</h1>
       <p className="text-gray-500 mb-6">
-        Built something with the JohnWeb API? Register it — approved apps get a <b>🛠️ App Builder</b> badge and a link on your profile.
+        Built something with the JohnWeb API? Register it — approved apps get a <b>🛠️ App Builder</b> badge and a link on your profile. Apps are approved instantly.
       </p>
 
       {msg && <div className="bg-green-50 border border-green-200 text-green-700 text-sm p-3 rounded-lg mb-4">{msg}</div>}
@@ -61,7 +61,7 @@ export default function DevAppBuilder() {
             <label className="block text-sm font-medium mb-1">What does it do?</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="A quiz app for Grade 7 Maths using the public API…" className="w-full p-2 border rounded-lg text-sm" />
           </div>
-          <button onClick={submit} className="bg-cyan-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-cyan-700">Submit for review</button>
+          <button onClick={submit} className="bg-cyan-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-cyan-700">Publish app</button>
         </div>
       </div>
 
