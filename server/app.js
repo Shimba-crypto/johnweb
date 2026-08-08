@@ -538,21 +538,22 @@ app.get("/api/dev/usage", auth, (req, res) => {
 
 // ─── STATUS PAGE DATA (probes POST beats; /api/status reads them) ─────────
 app.post("/api/status/beat", rateLimit(60, 60000), (req, res) => {
-  const { site, ok, ms } = req.body || {};
+  const { site, ok, ms, code } = req.body || {};
   if (!site) return res.status(400).json({ error: "site required" });
   const beats = readJSON("status-beats.json");
-  beats.push({ site: String(site).slice(0, 40), ok: Boolean(ok), ms: Math.min(Number(ms) || 0, 60000), at: new Date().toISOString() });
+  beats.push({ site: String(site).slice(0, 40), ok: Boolean(ok), ms: Math.min(Number(ms) || 0, 60000), code: Number(code) || 0, at: new Date().toISOString() });
   writeJSON("status-beats.json", beats.slice(-3000));
   res.json({ ok: true });
 });
 
 app.get("/api/status", (req, res) => {
   const beats = readJSON("status-beats.json");
+  const DAYS = 30;
   const sites = {};
   beats.forEach((b) => {
     const d = b.at.slice(0, 10);
     if (!sites[b.site]) sites[b.site] = { name: b.site, days: {} };
-    if (!sites[b.site].days[d]) sites[b.site].days[d] = { checks: 0, fails: 0, msSum: 0, lastAt: b.at, lastMs: b.ms, lastOk: b.ok };
+    if (!sites[b.site].days[d]) sites[b.site].days[d] = { checks: 0, fails: 0, msSum: 0, lastAt: b.at, lastMs: b.ms, lastOk: b.ok, lastCode: b.code };
     const day = sites[b.site].days[d];
     day.checks++;
     if (!b.ok) day.fails++;
@@ -560,28 +561,33 @@ app.get("/api/status", (req, res) => {
     day.lastAt = b.at;
     day.lastMs = b.ms;
     day.lastOk = b.ok;
+    day.lastCode = b.code;
   });
   const result = {};
   for (const [name, s] of Object.entries(sites)) {
     const days = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = DAYS - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       const day = s.days[key];
       days.push(day
-        ? { date: key, checks: day.checks, fails: day.fails, avgMs: Math.round(day.msSum / day.checks), lastOk: day.lastOk }
-        : { date: key, checks: 0, fails: 0, avgMs: null, lastOk: null });
+        ? { date: key, checks: day.checks, fails: day.fails, avgMs: Math.round(day.msSum / day.checks), lastOk: day.lastOk, lastCode: day.lastCode }
+        : { date: key, checks: 0, fails: 0, avgMs: null, lastOk: null, lastCode: null });
     }
     const totalChecks = Object.values(s.days).reduce((a, d) => a + d.checks, 0);
     const totalFails = Object.values(s.days).reduce((a, d) => a + d.fails, 0);
+    const last = Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0];
+    const today = days[DAYS - 1];
     result[name] = {
       days,
       totalChecks,
       uptimePct: totalChecks ? Math.round((1 - totalFails / totalChecks) * 100) : null,
-      lastCheckAt: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastAt || null,
-      lastMs: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastMs || null,
-      lastOk: Object.values(s.days).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]?.lastOk ?? null,
+      today: today.checks ? { checks: today.checks, fails: today.fails, pct: Math.round(((today.checks - today.fails) / today.checks) * 100) } : null,
+      lastCheckAt: last?.lastAt || null,
+      lastMs: last?.lastMs || null,
+      lastOk: last?.lastOk ?? null,
+      lastCode: last?.lastCode ?? null,
     };
   }
   res.json({ generatedAt: new Date().toISOString(), sites: result });
