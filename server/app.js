@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readJSON, writeJSON, initStorage, storageMode } from "./storage.js";
+import { readJSON, writeJSON, initStorage, storageMode, getDb } from "./storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -3101,7 +3101,23 @@ export function migrateData() {
   if (changed) writeJSON("users.json", users);
 }
 
-// ─── INVITE LINKS ─────────────────────────────────────────────
+// Ensure critical collections (like dev-keys) are persisted to MongoDB on startup.
+// If MongoDB collection is empty but JSON has data, sync JSON -> MongoDB.
+const PERSIST_ON_STARTUP = ["dev-keys.json", "apps.json", "api-usage.json"];
+export async function persistCriticalToMongo() {
+  const mongoDb = getDb();
+  if (!mongoDb) return;
+  for (const f of PERSIST_ON_STARTUP) {
+    const data = readJSON(f);
+    if (!Array.isArray(data) || !data.length) continue;
+    const coll = mongoDb.collection(f.replace(".json", ""));
+    const count = await coll.countDocuments();
+    if (count === 0) {
+      await coll.insertMany(data.map(({ _id, ...rest }) => rest));
+      console.log(`[persist] synced ${data.length} ${f} records to MongoDB`);
+    }
+  }
+}
 function genToken() { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10); }
 
 app.post("/api/admin/invites", adminAuth, (req, res) => {

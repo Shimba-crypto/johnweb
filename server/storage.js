@@ -92,6 +92,10 @@ export function storageMode() {
   return usingMongo ? "mongodb" : "json";
 }
 
+export function getDb() {
+  return usingMongo ? db : null;
+}
+
 export async function initStorage() {
   if (getMongoUrl()) {
     const ok = await connectMongo();

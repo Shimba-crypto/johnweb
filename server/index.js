@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import app, { migrateData, checkSubscriptions } from "./app.js";
+import app, { migrateData, persistCriticalToMongo, checkSubscriptions } from "./app.js";
 import { initStorage } from "./storage.js";
 
 // Load .env.local if present
@@ -20,8 +20,9 @@ if (fs.existsSync(envPath)) {
 
 const PORT = process.env.PORT || 3001;
 
-initStorage().then(() => {
+initStorage().then(async () => {
   migrateData();
+  await persistCriticalToMongo();
   checkSubscriptions(); // notify about expiring subscriptions at startup
   setInterval(checkSubscriptions, 6 * 60 * 60 * 1000); // and every 6 hours
   app.listen(PORT, () => console.log(`JohnWeb server running on port ${PORT}`));

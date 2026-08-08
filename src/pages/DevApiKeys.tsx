@@ -44,7 +44,7 @@ export default function DevApiKeys() {
 
   const testKey = async () => {
     if (!key) return;
-    const r = await fetch("/api/dev/me", { headers: { Authorization: key.key } });
+    const r = await fetch("/api/dev/me", { headers: { Authorization: `Bearer ${key.key}` } });
     const d = await r.json();
     setTestResult(d.authenticatedWith === "api_key" ? `✅ Key works! You are ${d.name} (${d.role}, ${d.plan} plan)` : `❌ ${d.error || "Failed"}`);
   };
