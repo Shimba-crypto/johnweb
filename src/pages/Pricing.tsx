@@ -5,6 +5,7 @@ import { patchUser } from "../lib/apiFetch";
 
 const PLAN_NAMES: Record<string, string> = {
   free: "Free",
+  dev: "Developer",
   k10: "Starter",
   k20: "Basic",
   k30: "Plus",
@@ -15,6 +16,7 @@ const PLAN_NAMES: Record<string, string> = {
 
 const PLAN_COLORS: Record<string, string> = {
   free: "bg-gray-100 border-gray-300",
+  dev: "bg-cyan-50 border-cyan-300",
   k10: "bg-green-50 border-green-300",
   k20: "bg-blue-50 border-blue-300",
   k30: "bg-purple-50 border-purple-300",
@@ -25,6 +27,7 @@ const PLAN_COLORS: Record<string, string> = {
 
 const BTN_COLORS: Record<string, string> = {
   free: "bg-gray-500",
+  dev: "bg-cyan-600",
   k10: "bg-green-600",
   k20: "bg-blue-600",
   k30: "bg-purple-600",
@@ -34,6 +37,7 @@ const BTN_COLORS: Record<string, string> = {
 };
 
 const BADGES: Record<string, string> = {
+  dev: "DEV · FREE FOREVER",
   k10: "STARTER",
   k100: "MOST POPULAR",
   k200: "TEACHER'S CHOICE",
@@ -49,6 +53,7 @@ const INVOICE_LINKS: Record<string, string> = {
 };
 
 const DURATION_NOTE: Record<string, string> = {
+  dev: "free forever · never expires",
   k10: "one-time · 30 days",
   k20: "one-time · 30 days",
   k30: "one-time · 30 days",
@@ -93,6 +98,23 @@ export default function Pricing() {
       const u = JSON.parse(localStorage.getItem("user") || "null");
       if (u) setUser(u);
     } catch {}
+  };
+
+  const claimDev = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) { alert("Login to get the Developer plan"); return; }
+    const res = await fetch("/api/dev-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    });
+    const d = await res.json();
+    if (d.error) { alert(d.error); return; }
+    patchUser({ subscription: "dev", subscriptionExpiresAt: null });
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      if (u) setUser(u);
+    } catch {}
+    alert("✅ Developer plan active — everything unlocked, free forever!");
   };
 
   const paidPlans = plans.filter((p) => !p.id.startsWith("t") && p.id !== "free" && p.id !== "k50");
@@ -140,7 +162,7 @@ export default function Pricing() {
       </div>
 
       {/* Plans */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {paidPlans.map((plan, i) => {
           const isCurrent = plan.id === currentPlan;
           const name = PLAN_NAMES[plan.id] || plan.label;
@@ -150,7 +172,7 @@ export default function Pricing() {
               className={`relative rounded-2xl border-2 p-6 ${PLAN_COLORS[plan.id] || "bg-white border-gray-200"} ${isCurrent ? "ring-2 ring-green-500" : ""} shadow-sm flex flex-col`}
             >
               {BADGES[plan.id] && (
-                <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1 rounded-full font-semibold ${plan.id === "k100" ? "bg-gradient-to-r from-purple-600 to-red-600" : "bg-green-600"}`}>
+                <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1 rounded-full font-semibold ${plan.id === "k100" ? "bg-gradient-to-r from-purple-600 to-red-600" : plan.id === "dev" ? "bg-cyan-600" : "bg-green-600"}`}>
                   {BADGES[plan.id]}
                 </div>
               )}
@@ -175,6 +197,13 @@ export default function Pricing() {
                 </Link>
               ) : isCurrent ? (
                 <div className="text-center text-sm text-green-600 font-medium py-2 border-t pt-3">Current Plan</div>
+              ) : plan.id === "dev" ? (
+                <button
+                  onClick={claimDev}
+                  className={`w-full text-center text-white ${BTN_COLORS[plan.id] || "bg-green-600"} py-2 rounded-lg text-sm font-medium hover:opacity-90`}
+                >
+                  Get Developer Plan (Free)
+                </button>
               ) : plan.price > 0 && INVOICE_LINKS[plan.id] ? (
                 <div className="space-y-2 border-t pt-3">
                   <Link

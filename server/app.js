@@ -856,6 +856,7 @@ app.post("/api/admin/users/:id/notify", adminAuth, (req, res) => {
 // ─── SUBSCRIPTIONS ────────────────────────────────────────
 const PLANS = {
   free: { price: 0, label: "Free", features: ["Browse past papers", "Submit answers", "View model answers"] },
+  dev: { price: 0, label: "Developer", features: ["Everything unlocked — free forever", "All past papers with model answers", "Quizzes, flashcards & exam mode", "AI tutor & essay practice", "Battles, teams & leaderboard", "Never expires"] },
   k10: { price: 10, label: "Starter", features: ["All past papers with model answers", "Submit & get graded instantly", "Progress tracking & achievements", "30 days of access"] },
   k20: { price: 20, label: "Basic", features: ["Everything in Starter", "Quizzes with instant feedback", "Flashcards for revision", "Exam Mode timed practice", "30 days of access"] },
   k30: { price: 30, label: "Plus", features: ["Everything in Basic", "AI tutor chat", "Printable worksheets", "Essay practice with feedback", "30 days of access"] },
@@ -877,7 +878,7 @@ app.get("/api/pricing", (req, res) => {
 // Set a user's subscription (default 30-day period) and clear the expiry-notice flag
 function setSubscription(user, plan, days) {
   user.subscription = plan;
-  if (plan && plan !== "free") {
+  if (plan && plan !== "free" && plan !== "dev") {
     user.subscriptionExpiresAt = new Date(Date.now() + (days || 30) * 24 * 60 * 60 * 1000).toISOString();
     user.expiryNotified = false;
   } else {
@@ -885,6 +886,18 @@ function setSubscription(user, plan, days) {
     user.expiryNotified = false;
   }
 }
+
+// Free Developer plan — anyone can switch, never expires
+app.post("/api/dev-plan", auth, (req, res) => {
+  const users = readJSON("users.json");
+  const idx = users.findIndex((u) => u.id === req.user.id);
+  if (idx === -1) return res.status(404).json({ error: "User not found" });
+  setSubscription(users[idx], "dev");
+  writeJSON("users.json", users);
+  addNotification(users[idx].id, "plan_changed", "Developer Plan Active", "You're on the free Developer plan — everything unlocked forever!", "/pricing");
+  adminLog("dev_plan_claimed", users[idx].id, users[idx].name, "claimed free Developer plan");
+  res.json({ message: "Developer plan active — everything unlocked, free forever!", plan: "dev", expiresAt: null });
+});
 
 // One free trial per account: t1d / t3d / t1w
 app.post("/api/trial", auth, (req, res) => {
@@ -3126,7 +3139,7 @@ function genAccessCode() {
 
 app.post("/api/admin/codes", adminAuth, (req, res) => {
   const { plan, count } = req.body;
-  const plans = ["k10", "k20", "k30", "k50", "k100", "k200", "t1d", "t3d", "t1w"];
+  const plans = ["k10", "k20", "k30", "k50", "k100", "k200", "t1d", "t3d", "t1w", "dev"];
   if (!plans.includes(plan)) return res.status(400).json({ error: "Invalid plan" });
   const n = Math.min(count || 1, 100);
   const codes = readJSON("codes.json");
