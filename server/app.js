@@ -714,8 +714,8 @@ app.get("/api/public/papers", (req, res) => {
   let papers = readJSON("papers.json");
   const { subjectId, grade, year } = req.query;
   if (subjectId) papers = papers.filter((p) => p.subjectId === subjectId);
-  if (grade) papers = papers.filter((p) => p.grade === grade);
-  if (year) papers = papers.filter((p) => p.year === parseInt(year));
+  if (grade) papers = papers.filter((p) => String(p.grade) === String(grade));
+  if (year) papers = papers.filter((p) => String(p.year) === String(year));
   const questions = readJSON("questions.json");
   res.json(papers.map((p) => ({
     id: p.id,
