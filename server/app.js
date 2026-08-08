@@ -74,7 +74,7 @@ if (fs.existsSync(DIST_DIR)) {
   app.use("/assets", express.static(path.join(DIST_DIR, "assets"), { maxAge: "365d", immutable: true }));
   // Everything else (index.html) must NOT be cached so phones get fresh code every visit.
   app.use(express.static(DIST_DIR, { index: false }));
-  app.get(/^\/(?!api|uploads|backups|assets).*/, (req, res) => {
+  app.get(/^\/(?!api\/|uploads|backups|assets).*/, (req, res) => {
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Pragma", "no-cache");
     res.sendFile(path.join(DIST_DIR, "index.html"));
