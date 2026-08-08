@@ -34,8 +34,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# JohnWeb app data & secrets
-/data
+# JohnWeb app data & secrets — core data tracked, rest ignored
+/data/*
+!/data/papers.json
+!/data/subjects.json
+!/data/questions.json
 /uploads
 /backups
 /dist

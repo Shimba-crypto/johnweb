@@ -1,0 +1,272 @@
+[
+  {
+    "id": "sub-01",
+    "name": "Mathematics",
+    "code": "4024",
+    "description": "ECZ Mathematics"
+  },
+  {
+    "id": "sub-02",
+    "name": "English Language",
+    "code": "1120",
+    "description": "ECZ English Language"
+  },
+  {
+    "id": "sub-03",
+    "name": "Physics",
+    "code": "5054",
+    "description": "ECZ Physics"
+  },
+  {
+    "id": "sub-04",
+    "name": "Chemistry",
+    "code": "5070",
+    "description": "ECZ Chemistry"
+  },
+  {
+    "id": "sub-05",
+    "name": "Biology",
+    "code": "5090",
+    "description": "ECZ Biology"
+  },
+  {
+    "id": "sub-06",
+    "name": "Geography",
+    "code": "2217",
+    "description": "ECZ Geography"
+  },
+  {
+    "id": "sub-07",
+    "name": "History",
+    "code": "2167",
+    "description": "ECZ History"
+  },
+  {
+    "id": "sub-08",
+    "name": "Civic Education",
+    "code": "2223",
+    "description": "ECZ Civic Education"
+  },
+  {
+    "id": "sub-09",
+    "name": "Religious Education",
+    "code": "2046",
+    "description": "ECZ Religious Education"
+  },
+  {
+    "id": "sub-10",
+    "name": "Computer Studies",
+    "code": "2259",
+    "description": "ECZ Computer Studies"
+  },
+  {
+    "id": "sub-11",
+    "name": "Commerce",
+    "code": "7080",
+    "description": "ECZ Commerce"
+  },
+  {
+    "id": "sub-12",
+    "name": "Additional Mathematics",
+    "code": "4030",
+    "description": "ECZ Additional Mathematics"
+  },
+  {
+    "id": "sub-13",
+    "name": "Science",
+    "code": "5124",
+    "description": "ECZ Science (Junior)"
+  },
+  {
+    "id": "sub-14",
+    "name": "Social Studies",
+    "code": "8330",
+    "description": "ECZ Social Studies"
+  },
+  {
+    "id": "sub-15",
+    "name": "Principles of Accounts",
+    "code": "7110",
+    "description": "ECZ Principles of Accounts"
+  },
+  {
+    "id": "sub-16",
+    "name": "Agricultural Science",
+    "code": "5010",
+    "description": "ECZ Agricultural Science"
+  },
+  {
+    "id": "sub-17",
+    "name": "English Literature",
+    "code": "2010",
+    "description": "ECZ English Literature"
+  },
+  {
+    "id": "sub-18",
+    "name": "Integrated Science",
+    "code": "5120",
+    "description": "ECZ Integrated Science"
+  },
+  {
+    "id": "sub-19",
+    "name": "Creative and Technology Studies",
+    "code": "4500",
+    "description": "ECZ Creative and Technology Studies"
+  },
+  {
+    "id": "sub-20",
+    "name": "Art and Design",
+    "code": "1140",
+    "description": "ECZ Art and Design"
+  },
+  {
+    "id": "sub-21",
+    "name": "Business Studies",
+    "code": "1147",
+    "description": "ECZ Business Studies"
+  },
+  {
+    "id": "sub-22",
+    "name": "Chinese",
+    "code": "1154",
+    "description": "ECZ Chinese"
+  },
+  {
+    "id": "sub-23",
+    "name": "Chitonga",
+    "code": "1161",
+    "description": "ECZ Chitonga"
+  },
+  {
+    "id": "sub-24",
+    "name": "Cinyanja",
+    "code": "1168",
+    "description": "ECZ Cinyanja"
+  },
+  {
+    "id": "sub-25",
+    "name": "Civics",
+    "code": "1175",
+    "description": "ECZ Civics"
+  },
+  {
+    "id": "sub-26",
+    "name": "Design and Technology",
+    "code": "1182",
+    "description": "ECZ Design and Technology"
+  },
+  {
+    "id": "sub-27",
+    "name": "English",
+    "code": "1189",
+    "description": "ECZ English"
+  },
+  {
+    "id": "sub-28",
+    "name": "Fashion and Fabrics",
+    "code": "1196",
+    "description": "ECZ Fashion and Fabrics"
+  },
+  {
+    "id": "sub-29",
+    "name": "French",
+    "code": "1203",
+    "description": "ECZ French"
+  },
+  {
+    "id": "sub-30",
+    "name": "Geometrical and Mechanical Drawing",
+    "code": "1210",
+    "description": "ECZ Geometrical and Mechanical Drawing"
+  },
+  {
+    "id": "sub-31",
+    "name": "Home Economics",
+    "code": "1217",
+    "description": "ECZ Home Economics"
+  },
+  {
+    "id": "sub-32",
+    "name": "ICibemba",
+    "code": "1224",
+    "description": "ECZ ICibemba"
+  },
+  {
+    "id": "sub-33",
+    "name": "Kiikaonde",
+    "code": "1231",
+    "description": "ECZ Kiikaonde"
+  },
+  {
+    "id": "sub-34",
+    "name": "Literature",
+    "code": "1238",
+    "description": "ECZ Literature"
+  },
+  {
+    "id": "sub-35",
+    "name": "Lunda",
+    "code": "1245",
+    "description": "ECZ Lunda"
+  },
+  {
+    "id": "sub-36",
+    "name": "Luvale",
+    "code": "1252",
+    "description": "ECZ Luvale"
+  },
+  {
+    "id": "sub-37",
+    "name": "Metal Work",
+    "code": "1259",
+    "description": "ECZ Metal Work"
+  },
+  {
+    "id": "sub-38",
+    "name": "Musical Arts Education",
+    "code": "1266",
+    "description": "ECZ Musical Arts Education"
+  },
+  {
+    "id": "sub-39",
+    "name": "Office Practice",
+    "code": "1273",
+    "description": "ECZ Office Practice"
+  },
+  {
+    "id": "sub-40",
+    "name": "Physical Education",
+    "code": "1280",
+    "description": "ECZ Physical Education"
+  },
+  {
+    "id": "sub-41",
+    "name": "Religious Education (2044)",
+    "code": "1287",
+    "description": "ECZ Religious Education (2044)"
+  },
+  {
+    "id": "sub-42",
+    "name": "Religious Education (2046)",
+    "code": "1294",
+    "description": "ECZ Religious Education (2046)"
+  },
+  {
+    "id": "sub-43",
+    "name": "Silozi",
+    "code": "1301",
+    "description": "ECZ Silozi"
+  },
+  {
+    "id": "sub-44",
+    "name": "Special",
+    "code": "1308",
+    "description": "ECZ Special"
+  },
+  {
+    "id": "sub-45",
+    "name": "Woodwork",
+    "code": "1315",
+    "description": "ECZ Woodwork"
+  }
+]

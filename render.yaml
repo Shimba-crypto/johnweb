@@ -3,7 +3,7 @@ services:
     name: johnweb
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && node scripts/seed.js
+    buildCommand: npm install && npm run build && node scripts/seed.js && node scripts/upsert-papers.js
     startCommand: npm start
     healthCheckPath: /api/stats
     envVars:
