@@ -10,7 +10,7 @@ function loadEnv() {
   const env = {};
   const fp = path.join(process.cwd(), ".env.local");
   if (fs.existsSync(fp)) {
-    for (const line of fs.readFileSync(fp, "-utf8").split("\n")) {
+    for (const line of fs.readFileSync(fp, "utf8").split("\n")) {
       const t = line.trim();
       if (!t || t.startsWith("#") || !t.includes("=")) continue;
       const i = t.indexOf("=");
