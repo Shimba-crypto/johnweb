@@ -45,6 +45,15 @@ export default function Install() {
         <p className="text-gray-500">Get the JohnWeb app on your device — offline-ready ECZ past papers, quizzes and AI tutors.</p>
       </div>
 
+      <div className="bg-teal-50 border border-teal-200 p-6 rounded-xl shadow-sm mb-6">
+        <h2 className="text-xl font-bold text-teal-800 mb-2">🧒 CooperWeb Launcher</h2>
+        <p className="text-gray-600 text-sm mb-4">Cooper's Grade 7 practice app — a tiny launcher that opens the site in your browser. Brand new, built by Cooper.</p>
+        <a href="/install/cooperweb-launcher.apk" download className="inline-block bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-teal-700">
+          ⬇️ Download CooperWeb Launcher (APK)
+        </a>
+        <p className="text-xs text-gray-400 mt-3">After downloading, open the file and allow installation from unknown sources.</p>
+      </div>
+
       <div className="bg-white p-6 rounded-xl border shadow-sm mb-6">
         <p className="text-sm text-gray-500 mb-3">Detected your device:</p>
         <div className="text-2xl font-bold text-green-700 mb-4">{osLabel[os]}</div>
