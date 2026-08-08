@@ -51,6 +51,10 @@ export default function Install() {
         <a href="/install/cooperweb-launcher.apk" download className="inline-block bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-teal-700">
           ⬇️ Download CooperWeb Launcher (APK)
         </a>
+        <span className="mx-3 text-gray-400">or</span>
+        <a href="/install/cooperweb-app.apk" download className="inline-block bg-white border-2 border-teal-600 text-teal-700 px-6 py-3 rounded-xl font-semibold hover:bg-teal-50">
+          ⬇️ CooperWeb App (always-on APK)
+        </a>
         <p className="text-xs text-gray-400 mt-3">After downloading, open the file and allow installation from unknown sources.</p>
       </div>
 
