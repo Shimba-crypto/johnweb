@@ -32,41 +32,38 @@ async function main() {
   const db = client.db(DB_NAME);
   console.log(`Connected to ${DB_NAME}`);
 
-  // Subjects
+  // Subjects — bulk upsert
   const subjects = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "subjects.json"), "utf8"));
-  let subAdded = 0;
-  for (const s of subjects) {
-    const exists = await db.collection("subjects").findOne({ id: s.id });
-    if (!exists) {
-      await db.collection("subjects").insertOne({ ...s, _id: s.id });
-      subAdded++;
-    }
+  const existingSubIds = new Set((await db.collection("subjects").find({}, { projection: { id: 1 } }).toArray()).map((s) => s.id));
+  const newSubs = subjects.filter((s) => !existingSubIds.has(s.id));
+  if (newSubs.length) {
+    await db.collection("subjects").bulkWrite(newSubs.map((s) => ({
+      updateOne: { filter: { id: s.id }, update: { $set: { ...s, _id: s.id } }, upsert: true },
+    })));
   }
-  console.log(`  subjects: ${subAdded} new (${subjects.length} total in files)`);
+  console.log(`  subjects: ${newSubs.length} new (${subjects.length} total in files)`);
 
-  // Papers
+  // Papers — bulk upsert
   const papers = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "papers.json"), "utf8"));
-  let papAdded = 0;
-  for (const p of papers) {
-    const exists = await db.collection("papers").findOne({ id: p.id });
-    if (!exists) {
-      await db.collection("papers").insertOne({ ...p, _id: p.id });
-      papAdded++;
-    }
+  const existingPapIds = new Set((await db.collection("papers").find({}, { projection: { id: 1 } }).toArray()).map((p) => p.id));
+  const newPaps = papers.filter((p) => !existingPapIds.has(p.id));
+  if (newPaps.length) {
+    await db.collection("papers").bulkWrite(newPaps.map((p) => ({
+      updateOne: { filter: { id: p.id }, update: { $set: { ...p, _id: p.id } }, upsert: true },
+    })));
   }
-  console.log(`  papers: ${papAdded} new (${papers.length} total in files)`);
+  console.log(`  papers: ${newPaps.length} new (${papers.length} total in files)`);
 
-  // Questions (only for new papers to avoid re-inserting 1440)
+  // Questions — bulk upsert (faster)
   const questions = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "questions.json"), "utf8"));
-  let qAdded = 0;
-  for (const q of questions) {
-    const exists = await db.collection("questions").findOne({ id: q.id });
-    if (!exists) {
-      await db.collection("questions").insertOne({ ...q, _id: q.id });
-      qAdded++;
-    }
+  const existingQIds = new Set((await db.collection("questions").find({}, { projection: { id: 1 } }).toArray()).map((q) => q.id));
+  const newQs = questions.filter((q) => !existingQIds.has(q.id));
+  if (newQs.length) {
+    await db.collection("questions").bulkWrite(newQs.map((q) => ({
+      updateOne: { filter: { id: q.id }, update: { $set: { ...q, _id: q.id } }, upsert: true },
+    })));
   }
-  console.log(`  questions: ${qAdded} new (${questions.length} total in files)`);
+  console.log(`  questions: ${newQs.length} new (${questions.length} total in files)`);
 
   await client.close();
   console.log("Upsert complete.");
