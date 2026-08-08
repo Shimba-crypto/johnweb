@@ -417,6 +417,74 @@ app.get("/api/auth/me", (req, res) => {
   res.json({ id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null });
 });
 
+// ─── DEV PLATFORM API (free Developer plan) ─────────────────
+// Self-serve API keys (devkey_*) for developers on the free Developer plan.
+function devKeyFor(userId) {
+  return readJSON("dev-keys.json").find((k) => k.userId === userId) || null;
+}
+
+// /api/dev/me accepts either a normal login token or a devkey_* API key
+app.get("/api/dev/me", (req, res) => {
+  let userId = authUserId(req);
+  let viaKey = false;
+  if (!userId) {
+    const raw = String(req.headers.authorization || "");
+    const key = raw.startsWith("devkey_") ? raw : raw.slice(7);
+    const k = readJSON("dev-keys.json").find((x) => x.key === key);
+    if (k) {
+      userId = k.userId;
+      viaKey = true;
+      k.lastUsedAt = new Date().toISOString();
+      writeJSON("dev-keys.json", readJSON("dev-keys.json"));
+    }
+  }
+  if (!userId) return res.status(401).json({ error: "Unauthorized — send a Bearer token or a devkey_* API key" });
+  const user = readJSON("users.json").find((u) => u.id === userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ id: user.id, name: user.name, email: user.email, role: user.role, plan: user.subscription || "free", authenticatedWith: viaKey ? "api_key" : "token" });
+});
+
+app.post("/api/dev/api-key", auth, (req, res) => {
+  const keys = readJSON("dev-keys.json");
+  if (keys.find((k) => k.userId === req.user.id)) {
+    return res.status(400).json({ error: "You already have an API key. Revoke it first to create a new one." });
+  }
+  const key = "devkey_" + crypto.randomBytes(24).toString("base64url");
+  keys.push({ id: uuidv4(), userId: req.user.id, key, createdAt: new Date().toISOString(), lastUsedAt: null });
+  writeJSON("dev-keys.json", keys);
+  adminLog("dev_key_created", req.user.id, req.user.name, "created a Developer API key");
+  res.json({ message: "API key created. Keep it safe!", key, createdAt: keys[keys.length - 1].createdAt });
+});
+
+app.get("/api/dev/api-key", auth, (req, res) => {
+  const k = devKeyFor(req.user.id);
+  res.json(k ? { key: k.key, createdAt: k.createdAt, lastUsedAt: k.lastUsedAt } : { key: null });
+});
+
+app.delete("/api/dev/api-key", auth, (req, res) => {
+  const keys = readJSON("dev-keys.json");
+  writeJSON("dev-keys.json", keys.filter((k) => k.userId !== req.user.id));
+  adminLog("dev_key_revoked", req.user.id, req.user.name, "revoked Developer API key");
+  res.json({ message: "API key revoked." });
+});
+
+app.get("/api/dev/stats", auth, (req, res) => {
+  const users = readJSON("users.json");
+  const papers = readJSON("papers.json");
+  const questions = readJSON("questions.json");
+  const subjects = readJSON("subjects.json");
+  const answers = readJSON("answers.json").filter((a) => a.userId === req.user.id);
+  const views = readJSON("paper-views.json").filter((v) => v.userId === req.user.id);
+  const k = devKeyFor(req.user.id);
+  const correct = answers.filter((a) => a.isCorrect).length;
+  res.json({
+    library: { subjects: subjects.length, papers: papers.length, questions: questions.length },
+    me: { name: req.user.name, role: req.user.role, plan: req.user.subscription || "free", answersSubmitted: answers.length, correctAnswers: correct, papersViewed: views.length },
+    apiKey: k ? { createdAt: k.createdAt, lastUsedAt: k.lastUsedAt } : null,
+    rateLimits: { public: "300 req/min per IP", bots: "30 req/min" },
+  });
+});
+
 app.get("/api/subjects", (req, res) => {
   const subjects = readJSON("subjects.json");
   const papers = readJSON("papers.json");
@@ -2562,7 +2630,7 @@ app.get("/api/admin/backup", adminAuth, (req, res) => {
   const filename = `johnweb-backup-${new Date().toISOString().slice(0, 10)}.json`;
   // Read via readJSON (Mongo-backed when in Mongo mode) so backups reflect
   // the REAL live data, not whatever files happen to be on disk.
-  const INIT_COLLECTIONS = ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json", "invoices.json"];
+  const INIT_COLLECTIONS = ["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "library.json", "invoices.json"];
   const CORE = ["users.json", "subjects.json", "papers.json", "questions.json", "answers.json", "settings.json"];
   const data = {};
   [...new Set([...INIT_COLLECTIONS, ...CORE])].forEach((f) => {
@@ -4080,7 +4148,7 @@ app.post("/api/usage/page-view", (req, res) => {
 });
 
 // Init empty data files
-["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "library.json", "invoices.json"].forEach((f) => {
+["ratings.json", "notifications.json", "follows.json", "news.json", "contacts.json", "teams.json", "quizzes.json", "quiz-results.json", "notes.json", "comments.json", "admin-logs.json", "xp.json", "password-resets.json", "email-verifications.json", "payments.json", "bookmarks.json", "refresh-tokens.json", "boss-battles.json", "certificates.json", "classes.json", "battles.json", "codes.json", "invites.json", "referrals.json", "seals.json", "flags.json", "paper-views.json", "chat-stats.json", "page-views.json", "push-subscriptions.json", "dev-keys.json", "library.json", "invoices.json"].forEach((f) => {
   const fp = path.join(DATA_DIR, f);
   if (!fs.existsSync(fp)) fs.writeFileSync(fp, "[]");
 });

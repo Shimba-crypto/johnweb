@@ -146,6 +146,21 @@ export default function Layout() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {user?.subscription === "dev" ? (
+          <>
+            <SectionLabel>Developer</SectionLabel>
+            <Link to="/dev" className={linkCls("/dev")}>🖥️ <span>Dev Dashboard</span></Link>
+            <Link to="/dev/api-keys" className={linkCls("/dev/api-keys")}>🔑 <span>API Keys</span></Link>
+            <Link to="/dev/api-stats" className={linkCls("/dev/api-stats")}>📊 <span>API Stats</span></Link>
+            <Link to="/dev/papers-api" className={linkCls("/dev/papers-api")}>📚 <span>Papers API</span></Link>
+            <Link to="/dev/connect-app" className={linkCls("/dev/connect-app")}>🔌 <span>Connect App</span></Link>
+            <Link to="/api-docs" className={linkCls("/api-docs")}>📖 <span>API Docs</span></Link>
+            <SectionLabel>Account</SectionLabel>
+            <Link to="/profile" className={linkCls("/profile")}>👤 <span>My Profile</span></Link>
+            <Link to="/settings" className={linkCls("/settings")}>⚙️ <span>Settings</span></Link>
+          </>
+        ) : (
+        <>
         {user && (
           <>
             <SectionLabel>Study</SectionLabel>
@@ -200,6 +215,8 @@ export default function Layout() {
         <Link to="/pricing" className={linkCls("/pricing")}>💳 <span>Pricing</span></Link>
         <Link to="/contact" className={linkCls("/contact")}>📧 <span>Contact</span></Link>
         <Link to="/api-docs" className={linkCls("/api-docs")}>🔌 <span>API Docs</span></Link>
+        </>
+        )}
       </nav>
 
       <div className="border-t border-gray-200 dark:border-gray-700 p-3">

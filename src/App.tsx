@@ -42,6 +42,11 @@ import Timetable from "./pages/Timetable";
 import ForgotPassword from "./pages/ForgotPassword";
 import PublicProfile from "./pages/PublicProfile";
 import ApiDocs from "./pages/ApiDocs";
+import DevDashboard from "./pages/DevDashboard";
+import DevApiKeys from "./pages/DevApiKeys";
+import DevApiStats from "./pages/DevApiStats";
+import DevPapersApi from "./pages/DevPapersApi";
+import DevConnectApp from "./pages/DevConnectApp";
 import Bookmarks from "./pages/Bookmarks";
 import PostNews from "./pages/PostNews";
 import OfflineIndicator from "./components/OfflineIndicator";
@@ -109,6 +114,11 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/user/:id" element={<PublicProfile />} />
         <Route path="/api-docs" element={<ApiDocs />} />
+        <Route path="/dev" element={<DevDashboard />} />
+        <Route path="/dev/api-keys" element={<DevApiKeys />} />
+        <Route path="/dev/api-stats" element={<DevApiStats />} />
+        <Route path="/dev/papers-api" element={<DevPapersApi />} />
+        <Route path="/dev/connect-app" element={<DevConnectApp />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/admin/post-news" element={<PostNews />} />
         <Route path="/achievements" element={<Achievements />} />
