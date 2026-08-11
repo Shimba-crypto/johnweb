@@ -322,6 +322,85 @@ app.post("/api/auth/login", (req, res) => {
   res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken, user: { id: user.id, name: user.name, email: user.email, role: user.role, subscription: user.subscription || "free", subscriptionExpiresAt: user.subscriptionExpiresAt || null } });
 });
 
+// ─── SSO: Login with Auther ────────────────────────────────
+// Auther dashboard sends users here with ?token=<auther token>.
+// We verify the token server-side against Auther, find-or-create the
+// local JohnWeb user, and log them in with the normal JWT flow.
+const AUTHER = process.env.AUTHER_URL || "https://auther-zblr.onrender.com";
+
+async function autherSsoUser(autherToken) {
+  const r = await fetch(`${AUTHER}/api/auth/me`, {
+    headers: { "X-Auth-Token": autherToken },
+    signal: AbortSignal.timeout(20000),
+  });
+  const d = await r.json();
+  if (!r.ok || !d?.user) return null;
+  return d.user;
+}
+
+function findOrCreateAutherUser(autherUser) {
+  const users = readJSON("users.json");
+  let user = users.find((u) => String(u.email).toLowerCase() === String(autherUser.email).toLowerCase());
+  if (!user) {
+    user = {
+      id: uuidv4(),
+      name: autherUser.name || autherUser.email.split("@")[0],
+      email: autherUser.email,
+      password: bcrypt.hashSync(crypto.randomBytes(18).toString("hex"), 10),
+      role: "student",
+      tokenVersion: 1,
+      ssoProvider: "auther",
+      ssoUserId: autherUser.id,
+      createdAt: new Date().toISOString(),
+    };
+    users.push(user);
+    writeJSON("users.json", users);
+    addNotification(user.id, "welcome", "👋 Welcome to JohnWeb!", `Hi ${user.name}! You signed in with Auther — practice real ECZ past papers and take quizzes.`, "/browse");
+  }
+  return user;
+}
+
+app.get("/api/auth/sso", async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.redirect(`${AUTHER}/sso/authorize?client_id=johnweb&redirect_uri=${encodeURIComponent("https://johnweb-qncu.onrender.com/api/auth/sso/callback")}`);
+  }
+  try {
+    const autherUser = await autherSsoUser(token);
+    if (!autherUser) return res.redirect("/login?error=sso_failed");
+    if (autherUser.active === false) return res.redirect("/login?error=sso_failed");
+    const user = findOrCreateAutherUser(autherUser);
+    if (user.banned) return res.redirect("/login?error=sso_failed");
+    const tokens = issueTokens(user);
+    res.redirect(`/login?sso_access=${encodeURIComponent(tokens.accessToken)}&sso_refresh=${encodeURIComponent(tokens.refreshToken)}`);
+  } catch {
+    res.redirect("/login?error=sso_failed");
+  }
+});
+
+app.get("/api/auth/sso/callback", async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.redirect("/login?error=sso_failed");
+  try {
+    const r = await fetch(`${AUTHER}/sso/exchange`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const d = await r.json();
+    if (!d.ok || !d.user) return res.redirect("/login?error=sso_failed");
+    const autherUser = d.user;
+    if (autherUser.active === false) return res.redirect("/login?error=sso_failed");
+    const user = findOrCreateAutherUser(autherUser);
+    if (user.banned) return res.redirect("/login?error=sso_failed");
+    const tokens = issueTokens(user);
+    res.redirect(`/login?sso_access=${encodeURIComponent(tokens.accessToken)}&sso_refresh=${encodeURIComponent(tokens.refreshToken)}`);
+  } catch {
+    res.redirect("/login?error=sso_failed");
+  }
+});
+
 // ─── /johnx SECRET LINK AUTO-LOGIN ─────────────────────────
 // A single unguessable key grants instant login as John (no password).
 // The key lives in storage (johnx.json / Mongo "johnx" collection) and can

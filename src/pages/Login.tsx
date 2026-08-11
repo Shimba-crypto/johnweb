@@ -29,6 +29,18 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoAccess = params.get("sso_access");
+    const ssoRefresh = params.get("sso_refresh");
+    if (!ssoAccess) return;
+    window.history.replaceState({}, "", "/login");
+    localStorage.setItem("token", ssoAccess);
+    localStorage.setItem("refreshToken", ssoRefresh || "");
+    localStorage.setItem("user", JSON.stringify({ name: "", email: "" }));
+    navigate("/browse");
+  }, [navigate]);
+
+  useEffect(() => {
     fetch("/api/meta")
       .then((r) => r.json())
       .then((d) => { if (d.googleClientId) setGoogleClientId(d.googleClientId); })
@@ -169,6 +181,12 @@ export default function Login() {
           Google sign-in is not configured yet. Use your email and password above.
         </p>
       )}
+      <div className="relative my-4 text-center">
+        <span className="bg-gray-100 px-3 py-1 text-xs text-gray-500 rounded-full">or</span>
+      </div>
+      <a href="/api/auth/sso" className="block text-center w-full border border-indigo-300 text-indigo-700 py-2 rounded-lg hover:bg-indigo-50 font-medium">
+        <span className="font-bold">A</span> Login with Auther
+      </a>
     </div>
   );
 }
